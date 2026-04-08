@@ -8,10 +8,22 @@ st.set_page_config(page_title="DAT.co 監測站", layout="wide")
 st.title("📊 DAT.co (Digital Asset Treasury) 財務指標監測")
 st.write("本站監測 MicroStrategy (MSTR) 的 mNAV 指標及其與比特幣的關係。")
 
+def scrape_mstr_holdings():
+    url = "https://bitcointreasuries.net/"
+    # 抓取網頁中的所有表格
+    tables = pd.read_html(url)
+    df_holdings = tables[0] # 通常第一個表格就是上市公司名單
+    
+    # 尋找 MSTR 那一行並取得持幣量欄位
+    # 注意：網頁結構變動可能導致此處失效，需視情況調整
+    mstr_row = df_holdings[df_holdings['Entity'].str.contains("MicroStrategy", na=False)]
+    holdings = mstr_row['BTC Holdings'].values[0]
+    return float(holdings.replace(',', ''))
+
 # 1. 定義數據 (以 MSTR 為例)
 ticker_symbol = "MSTR"
 btc_symbol = "BTC-USD"
-mstr_btc_holdings = 252220  # 截至最新數據的持有量，可根據報表更新
+mstr_btc_holdings = scrape_mstr_holdings()  # 截至最新數據的持有量，可根據報表更新
 
 # 2. 抓取數據 (過去一年)
 td = TDClient(apikey="42d2074881da4044b2c7dc363208af13")
