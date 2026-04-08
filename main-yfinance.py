@@ -38,7 +38,7 @@ def get_mstr_fundamentals():
         
         return float(shares), float(debt), preferred, cash
     except:
-        return 345600000.0, 8247597056.0, 0.0, 2250000000.0
+        return 345600000.0, 8247597056.0, 3400000000.0, 2250000000.0
 
 @st.cache_data(ttl=600)
 def load_price_data(api_key):
