@@ -90,6 +90,7 @@ def plot_mstr_chart(df):
         name='mNAV Premium'
     ))
 
+    y_max = df['mNAV'].max() * 1.2
     # --- 鎖定縮放的核心設定 ---
     fig.update_layout(
         xaxis=dict(
@@ -102,6 +103,7 @@ def plot_mstr_chart(df):
         yaxis=dict(
             # Y 軸可以鎖定，因為 mNAV 的倍數範圍通常很固定
             fixedrange=True, 
+            range=[0,y_max],
             title="mNAV Ratio"
         ),
         dragmode='zoom', # 強制滑鼠預設功能是「框選放大」
