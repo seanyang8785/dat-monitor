@@ -8,7 +8,7 @@ from plotly.subplots import make_subplots
 
 # ================= 1. 頁面設定 =================
 st.set_page_config(page_title="DAT.co 專業監測站", layout="wide")
-st.title("DAT.co (Digital Asset Treasury) 財務指標監測")
+st.title("📊 DAT.co (Digital Asset Treasury) 財務指標監測")
 
 # --- API 配置 ---
 TWELVE_DATA_KEY = "42d2074881da4044b2c7dc363208af13"
@@ -17,38 +17,48 @@ TWELVE_DATA_KEY = "42d2074881da4044b2c7dc363208af13"
 
 @st.cache_data(ttl=3600)
 def get_mstr_holdings():
-    """獲取最新 BTC 持倉"""
-    # 預設為官網 2026/04 數據
     return 766970.0 
 
 @st.cache_data(ttl=86400)
 def get_mstr_fundamentals():
-    """使用 yfinance 抓取基礎股數與債務"""
     try:
         mstr = yf.Ticker("MSTR")
         info = mstr.info
-        # 抓取 Basic Shares (你提到的 345.6M)
-        shares = info.get('impliedSharesOutstanding') or info.get('sharesOutstanding') or 345600000.0
-        # 抓取總債務 (約 82.47B)
+        # 抓取 Basic Shares (優先採用 sharesOutstanding)
+        shares = info.get('sharesOutstanding') or 326000000.0
+        # 抓取總債務
         debt = info.get('totalDebt') or 8247597056.0
-        
-        # 補齊對齊 1.11x 的關鍵變數：優先股 (STRC) 與 現金 (Cash)
         preferred = 3400000000.0 
         cash = 2250000000.0      
-        
         return float(shares), float(debt), preferred, cash
     except:
-        return 345600000.0, 8247597056.0, 3400000000.0, 2250000000.0
+        return 326000000.0, 8247597056.0, 3400000000.0, 2250000000.0
 
 @st.cache_data(ttl=600)
-def load_price_data(api_key):
-    """獲取收盤價數據"""
+def load_historical_data(api_key):
+    """獲取歷史收盤價數據 (用於繪製圖表)"""
     td = TDClient(apikey=api_key)
+    # 使用 outputsize=100 確保有足夠歷史資料
     mstr_ts = td.time_series(symbol="MSTR", interval="1day", outputsize=100).as_pandas()
     btc_ts = td.time_series(symbol="BTC/USD", interval="1day", outputsize=100).as_pandas()
     mstr_ts.columns = [c.lower() for c in mstr_ts.columns]
     btc_ts.columns = [c.lower() for c in btc_ts.columns]
     return mstr_ts['close'], btc_ts['close']
+
+def get_realtime_data():
+    """抓取真正的即時報價 (秒級更新)"""
+    try:
+        # 1. 透過 Binance 抓取 BTC 即時價 (無延遲)
+        btc_res = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=5).json()
+        btc_price = float(btc_res['price'])
+        
+        # 2. 透過 yfinance fast_info 抓取 MSTR 即時/盤後價 (無延遲)
+        mstr_ticker = yf.Ticker("MSTR")
+        mstr_price = mstr_ticker.fast_info['last_price']
+        
+        return mstr_price, btc_price
+    except Exception as e:
+        return None, None
 
 # ================= 3. 數據計算流 =================
 
@@ -56,21 +66,25 @@ mstr_btc_holdings = get_mstr_holdings()
 total_shares, total_debt, total_preferred, total_cash = get_mstr_fundamentals()
 
 try:
-    mstr_close, btc_close = load_price_data(TWELVE_DATA_KEY)
+    # A. 載入歷史數據
+    mstr_close, btc_close = load_historical_data(TWELVE_DATA_KEY)
     df = pd.merge(mstr_close, btc_close, left_index=True, right_index=True, how='inner')
     df.columns = ['Price_MSTR', 'Price_BTC']
     df = df.sort_index()
 
-    # --- 核心計算 (EV 企業價值邏輯) ---
+    # B. 用即時數據覆蓋最後一筆 (即 Today 的數據)
+    rt_mstr, rt_btc = get_realtime_data()
+    if rt_mstr and rt_btc:
+        df.iloc[-1, df.columns.get_loc('Price_MSTR')] = rt_mstr
+        df.iloc[-1, df.columns.get_loc('Price_BTC')] = rt_btc
+
+    # C. 核心計算
     market_cap = df['Price_MSTR'] * total_shares
-    # 分子：市值 + 債務 + 優先股 - 現金
     enterprise_value = market_cap + total_debt + total_preferred - total_cash
-    # 分母：BTC 資產價值
     btc_asset_value = df['Price_BTC'] * mstr_btc_holdings
     
     df['mNAV'] = enterprise_value / btc_asset_value
     df['NAV'] = btc_asset_value / total_shares 
-    # 溢價率：維持小數形式，由圖表右側 Y 軸處理
     df['P_D_Percent'] = (df['mNAV'] - 1)
 
 except Exception as e:
@@ -82,14 +96,17 @@ except Exception as e:
 if not df.empty:
     latest = df.iloc[-1]
     
-    # --- 側邊欄：校準資訊 ---
+    # --- 側邊欄 ---
     st.sidebar.header("⚙️ 官方基準校準 (2026/04)")
     st.sidebar.write(f"持倉: **{mstr_btc_holdings:,.0f} BTC**")
-    st.sidebar.write(f"股數: **{total_shares:.1f}M (Basic)**")
+    st.sidebar.write(f"股數: **{total_shares/1e6:.1f}M (Basic)**")
     st.sidebar.write(f"債務: **${total_debt/1e9:.2f}B**")
-    st.sidebar.write(f"優先股: **${total_preferred/1e9:.2f}B**")
-    st.sidebar.write(f"現金: **${total_cash/1e9:.2f}B**")
     
+    # 增加一個手動刷新按鈕
+    if st.sidebar.button("🔄 強制刷新即時數據"):
+        st.cache_data.clear()
+        st.rerun()
+
     st.sidebar.markdown("---")
     st.sidebar.subheader("分子/分母實時監測")
     st.sidebar.write(f"分子 (EV): **${enterprise_value.iloc[-1]/1e9:.2f}B**")
@@ -105,31 +122,20 @@ if not df.empty:
 
     # --- 頂部儀表板 ---
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("BTC 價格", f"${latest['Price_BTC']:,.0f}")
-    c2.metric("MSTR 股價", f"${latest['Price_MSTR']:,.2f}")
+    # 使用真正的即時價
+    c1.metric("BTC 價格 (Binance)", f"${latest['Price_BTC']:,.0f}")
+    c2.metric("MSTR 股價 (Real-time)", f"${latest['Price_MSTR']:,.2f}")
     c3.metric("當前 mNAV", f"{latest['mNAV']:.2f}x")
-    # 這裡顯示轉換為百分比格式，方便閱讀
     c4.metric("溢價/折價", f"{latest['P_D_Percent']*100:.1f}%")
 
     # --- 繪圖區 ---
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     for label, col in selected_metrics:
-        # mNAV 和 溢價率 使用右側軸
         is_sec = col in ["mNAV", "P_D_Percent"]
-        fig.add_trace(
-            go.Scatter(x=df.index, y=df[col], name=label, line=dict(width=2.5)), 
-            secondary_y=is_sec
-        )
+        fig.add_trace(go.Scatter(x=df.index, y=df[col], name=label, line=dict(width=2.5)), secondary_y=is_sec)
     
-    fig.update_layout(
-        template="plotly_dark", 
-        hovermode="x unified",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-    )
-    
-    # 根據勾選動態調整右側軸的格式
+    fig.update_layout(template="plotly_dark", hovermode="x unified")
     if any(m[1] == "P_D_Percent" for m in selected_metrics):
-        fig.update_yaxes(tickformat=".1%", secondary_y=True) # 將 0.11 顯示為 11%
+        fig.update_yaxes(tickformat=".1%", secondary_y=True)
 
-    # 關鍵更新：使用 width='stretch' 取代舊有的佈局參數
     st.plotly_chart(fig, width='stretch')
