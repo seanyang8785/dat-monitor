@@ -30,16 +30,23 @@ def scrape_mstr_holdings():
         
         # 尋找 MicroStrategy
         # 使用 iloc 加上 str.contains 比較保險，不受欄位名稱變動影響
-        mstr_row = df[df.iloc[:, 0].str.contains("MicroStrategy", na=False)]
-        
+        is_mstr = df.iloc[:, 0].astype(str).str.contains("MicroStrategy", na=False)
+        mstr_row = df[is_mstr]
+
         if not mstr_row.empty:
-            # 假設持有量在第三欄 (index 2)
-            holdings_raw = str(mstr_row.iloc[0, 2])
-            # 清理字串中的逗號和非數字字元
-            import re
-            holdings_clean = re.sub(r'[^\d.]', '', holdings_raw)
-            return float(holdings_clean)
+            # 2. 取得持有量 (假設在第三欄，Index 2)
+            holdings_value = mstr_row.iloc[0, 2]
             
+            # 3. 判斷抓到的是數字還是字串
+            if isinstance(holdings_value, (int, float)):
+                # 如果已經是數字了，直接回傳
+                return float(holdings_value)
+            else:
+                # 如果是字串 (例如 "252,220 BTC")，才需要用正規表達式清理
+                import re
+                holdings_clean = re.sub(r'[^\d.]', '', str(holdings_value))
+                return float(holdings_clean)
+                    
     except Exception as e:
         st.warning(f"自動抓取數據時發生小插曲：{e}")
         return 252220 # 備援數值
