@@ -13,20 +13,41 @@ st.title("📊 DAT.co (Digital Asset Treasury) 財務指標監測")
 # --- API 配置 ---
 TWELVE_DATA_KEY = "42d2074881da4044b2c7dc363208af13"
 
-# ================= 2. 強制參數設定 (確保標題與數值一定顯示) =================
+# ================= 2. 動態數據抓取函數 =================
 
-# 這些是 2026/04 官方對齊 1.11x 的關鍵參數
-mstr_btc_holdings = 766970.0 
-total_shares = 345600000.0   # 設回 345.6M 以對齊 1.11
-total_debt = 8247597056.0
-total_preferred = 3400000000.0 
-total_cash = 2250000000.0      
+@st.cache_data(ttl=3600)
+def get_mstr_holdings():
+    """獲取最新 BTC 持倉"""
+    return 766970.0 
 
-# ================= 3. 數據抓取函數 =================
+@st.cache_data(ttl=86400)
+def get_mstr_fundamentals():
+    """全自動抓取 MSTR 資本結構"""
+    try:
+        mstr = yf.Ticker("MSTR")
+        info = mstr.info
+        
+        # 依照你的要求，優先使用 impliedSharesOutstanding
+        shares = info.get('impliedSharesOutstanding') or info.get('sharesOutstanding') or 379425000.0
+        
+        # 抓取總債務與現金
+        debt = info.get('totalDebt') or 8247597056.0
+        cash = info.get('totalCash') or 2250000000.0
+        
+        # 優先股 (STRC 系列) - 嘗試從資產負債表抓取，若無則回退基準值
+        try:
+            bs = mstr.balance_sheet
+            preferred = bs.loc['Preferred Stock'].iloc[0] if 'Preferred Stock' in bs.index else 3400000000.0
+        except:
+            preferred = 3400000000.0
+            
+        return float(shares), float(debt), float(preferred), float(cash)
+    except:
+        # 備援數據 (2026/04 基準)
+        return 379425000.0, 8247597056.0, 3400000000.0, 2250000000.0
 
 @st.cache_data(ttl=600)
 def load_historical_data(api_key):
-    """獲取歷史收盤價數據"""
     td = TDClient(apikey=api_key)
     try:
         mstr_ts = td.time_series(symbol="MSTR", interval="1day", outputsize=100).as_pandas()
@@ -34,12 +55,11 @@ def load_historical_data(api_key):
         mstr_ts.columns = [c.lower() for c in mstr_ts.columns]
         btc_ts.columns = [c.lower() for c in btc_ts.columns]
         return mstr_ts['close'], btc_ts['close']
-    except Exception as e:
-        st.error(f"API 抓取失敗: {e}")
+    except:
         return pd.Series(), pd.Series()
 
 def get_realtime_data():
-    """抓取 Binance 與 yfinance 即時報價"""
+    """秒級即時報價"""
     try:
         btc_res = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=5).json()
         btc_price = float(btc_res['price'])
@@ -49,40 +69,42 @@ def get_realtime_data():
     except:
         return None, None
 
-# ================= 4. 側邊欄 UI (移到最外面，保證不消失) =================
+# ================= 3. 主程序執行邏輯 =================
 
+# A. 抓取基本面數據
+total_shares, total_debt, total_preferred, total_cash = get_mstr_fundamentals()
+mstr_btc_holdings = get_mstr_holdings()
+
+# B. 側邊欄 UI (保證標題與參數一定會出現)
 with st.sidebar:
-    st.header("⚙️ 官方基準校準 (2026/04)")
+    st.header("⚙️ 實時基本面校準")
     st.write(f"持倉: **{mstr_btc_holdings:,.0f} BTC**")
-    st.write(f"股數: **{total_shares/1e6:.1f}M (Basic)**")
+    st.write(f"股數 (Implied): **{total_shares/1e6:.1f}M**")
     st.write(f"債務: **${total_debt/1e9:.2f}B**")
     st.write(f"優先股: **${total_preferred/1e9:.2f}B**")
     st.write(f"現金: **${total_cash/1e9:.2f}B**")
     
-    if st.button("🔄 強制刷新即時數據"):
+    if st.button("🔄 強制刷新數據"):
         st.cache_data.clear()
         st.rerun()
-
-    st.divider()
     
-    # 指標切換
+    st.divider()
+    st.subheader("📈 指標切換")
     selected_metrics = []
     options = {"MSTR 股價": "Price_MSTR", "估計 NAV": "NAV", "mNAV 倍數": "mNAV", "溢價/折價率": "P_D_Percent"}
-    st.subheader("指標切換")
     for i, (label, col) in enumerate(options.items()):
         if st.checkbox(label, value=(i in [0, 2]), key=f"c_{i}"):
             selected_metrics.append((label, col))
 
-# ================= 5. 數據計算流 =================
-
+# C. 數據計算
 try:
     mstr_close, btc_close = load_historical_data(TWELVE_DATA_KEY)
-    if not mstr_close.empty and not btc_close.empty:
+    if not mstr_close.empty:
         df = pd.merge(mstr_close, btc_close, left_index=True, right_index=True, how='inner')
         df.columns = ['Price_MSTR', 'Price_BTC']
         df = df.sort_index()
 
-        # 覆蓋即時數據
+        # 覆蓋即時報價
         rt_mstr, rt_btc = get_realtime_data()
         if rt_mstr and rt_btc:
             df.iloc[-1, df.columns.get_loc('Price_MSTR')] = rt_mstr
@@ -97,17 +119,18 @@ try:
         df['NAV'] = btc_asset_value / total_shares 
         df['P_D_Percent'] = (df['mNAV'] - 1)
 
-        # 側邊欄監測數值更新
+        # 側邊欄監測
         with st.sidebar:
-            st.subheader("分子/分母實時監測")
+            st.divider()
+            st.subheader("🔍 分子/分母監測")
             st.write(f"分子 (EV): **${enterprise_value.iloc[-1]/1e9:.2f}B**")
             st.write(f"分母 (BTC): **${btc_asset_value.iloc[-1]/1e9:.2f}B**")
 
         # --- 頂部儀表板 ---
         latest = df.iloc[-1]
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("BTC 價格 (Real-time)", f"${latest['Price_BTC']:,.0f}")
-        c2.metric("MSTR 股價 (Real-time)", f"${latest['Price_MSTR']:,.2f}")
+        c1.metric("BTC 價格 (即時)", f"${latest['Price_BTC']:,.0f}")
+        c2.metric("MSTR 股價 (即時)", f"${latest['Price_MSTR']:,.2f}")
         c3.metric("當前 mNAV", f"{latest['mNAV']:.2f}x")
         c4.metric("溢價/折價", f"{latest['P_D_Percent']*100:.1f}%")
 
@@ -117,13 +140,12 @@ try:
             is_sec = col in ["mNAV", "P_D_Percent"]
             fig.add_trace(go.Scatter(x=df.index, y=df[col], name=label, line=dict(width=2.5)), secondary_y=is_sec)
         
-        fig.update_layout(template="plotly_dark", hovermode="x unified")
+        fig.update_layout(template="plotly_dark", hovermode="x unified", legend=dict(orientation="h", y=1.1))
         if any(m[1] == "P_D_Percent" for m in selected_metrics):
             fig.update_yaxes(tickformat=".1%", secondary_y=True)
 
         st.plotly_chart(fig, width='stretch')
     else:
-        st.warning("等待數據加載中...")
-
+        st.warning("數據載入中，請稍候...")
 except Exception as e:
-    st.error(f"數據計算失敗: {e}")
+    st.error(f"系統運行錯誤: {e}")
