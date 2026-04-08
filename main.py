@@ -55,6 +55,7 @@ def scrape_mstr_holdings():
 ticker_symbol = "MSTR"
 btc_symbol = "BTC-USD"
 mstr_btc_holdings = scrape_mstr_holdings()  # 截至最新數據的持有量，可根據報表更新
+st.write(f"最新MSTR持有比特幣數量：{mstr_btc_holdings}枚")
 
 # 2. 抓取數據 (過去一年)
 td = TDClient(apikey="42d2074881da4044b2c7dc363208af13")
