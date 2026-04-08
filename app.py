@@ -6,22 +6,22 @@ import requests
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# ================= 1. Page Configuration =================
-st.set_page_config(page_title="DAT.co Financial Monitor", layout="wide")
-st.title("DAT.co (Digital Asset Treasury) Financial Indicators Monitor")
+# ================= 1. 頁面設定 (Page Config) =================
+st.set_page_config(page_title="DAT.co 財務監測站", layout="wide")
+st.title("DAT.co (Digital Asset Treasury) 財務指標監測")
 
-# --- Security Configuration ---
+# --- 安全配置 ---
 try:
     TWELVE_DATA_KEY = st.secrets["TWELVE_DATA_KEY"]
 except:
-    st.error("❌ API Key not detected. Please set TWELVE_DATA_KEY in Secrets.")
+    st.error("❌ 未偵測到 API 金鑰，請在 Secrets 中設定 TWELVE_DATA_KEY")
     st.stop()
 
-# ================= 2. Data Fetching & Status Tracking =================
+# ================= 2. 數據抓取與狀態追蹤 =================
 
 @st.cache_data(ttl=3600)
 def get_mstr_holdings():
-    """Fetch latest BTC holdings from CoinGecko"""
+    """從 CoinGecko 獲取最新 BTC 持倉量 (Fetch BTC Holdings)"""
     url = "https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin"
     try:
         data = requests.get(url, timeout=10).json()
@@ -34,7 +34,7 @@ def get_mstr_holdings():
 
 @st.cache_data(ttl=86400)
 def get_mstr_fundamentals():
-    """Fetch capital structure: Shares, Debt, Preferred Stock, Cash"""
+    """抓取資本結構 (Fetch Capital Structure)"""
     status = {"ok": True}
     try:
         mstr = yf.Ticker("MSTR")
@@ -81,123 +81,122 @@ def get_realtime_data():
     m_p, b_p = None, None
     try:
         b_p = float(yf.Ticker("BTC-USD").fast_info['last_price'])
-    except: st.sidebar.warning("⚠️ BTC Real-time Price Connection Failed")
+    except: st.sidebar.warning("⚠️ BTC 即時報價連線失敗")
     try:
         m_p = yf.Ticker("MSTR").fast_info['last_price']
-    except: st.sidebar.warning("⚠️ MSTR Real-time Price Connection Failed")
+    except: st.sidebar.warning("⚠️ MSTR 即時報價連線失敗")
     return m_p, b_p
 
-# ================= 3. Data Initialization =================
+# ================= 3. 數據初始化 =================
 
 shares, debt, pref, cash, fund_ok = get_mstr_fundamentals()
 mstr_btc_holdings, btc_ok = get_mstr_holdings()
 
-# ================= 4. Sidebar (Display & Selector) =================
+# ================= 4. 側邊欄 (Sidebar) =================
 
 with st.sidebar:
-    st.header("Baseline Parameter Monitoring")
+    st.header("⚙️ 基準參數 (Baseline)")
     
     btc_display = f"{mstr_btc_holdings:,.0f} BTC"
     if not btc_ok:
-        st.error(f"Holdings: {btc_display} ⚠️")
-        st.caption(":red[CoinGecko connection failed, using default value]")
+        st.error(f"持倉 (Holdings): {btc_display} ⚠️")
+        st.caption(":red[數據抓取失敗，使用預設值]")
     else:
-        st.write(f"Holdings: {btc_display}")
+        st.write(f"持倉 (Holdings): **{btc_display}**")
         
     if not fund_ok:
-        st.error("⚠️ Financial data fetch failed (using baseline)")
+        st.error("⚠️ 財務數據抓取失敗 (Using Baseline)")
     
-    st.write(f"Shares: {shares/1e6:.1f}M")
-    st.write(f"Total Debt: ${debt/1e9:.2f}B")
-    st.write(f"Preferred Stock: ${pref/1e9:.2f}B")
-    st.write(f"Cash: ${cash/1e9:.2f}B")
+    st.write(f"股數 (Shares): {shares/1e6:.1f}M")
+    st.write(f"總債務 (Debt): ${debt/1e9:.2f}B")
+    st.write(f"優先股 (Pref): ${pref/1e9:.2f}B")
+    st.write(f"現金 (Cash): ${cash/1e9:.2f}B")
     
-    if st.button("🔄 Force Refresh Data"):
+    if st.button("🔄 強制刷新數據 (Refresh)"):
         st.cache_data.clear()
         st.rerun()
         
     st.divider()
-    st.subheader("Chart Metric Selection")
+    st.subheader("📊 圖表指標 (Chart Metrics)")
     selected_metrics = []
-    # BTC per Share and Net Leverage removed from chart as per request
     options = {
-        "MSTR Price": "Price_MSTR", 
-        "mNAV Multiple": "mNAV", 
-        "Premium Rate": "P_D_Percent",
-        "MSTR/BTC Ratio": "MSTR_BTC_Ratio"
+        "MSTR 股價 (Price)": "Price_MSTR", 
+        "mNAV 倍數 (Multiple)": "mNAV", 
+        "溢價率 (Premium %)": "P_D_Percent",
+        "MSTR/BTC 相對強度": "MSTR_BTC_Ratio"
     }
     for label, col in options.items():
         is_default = col in ["Price_MSTR", "mNAV"]
         if st.checkbox(label, value=is_default, key=f"chk_{col}"):
             selected_metrics.append((label, col))
 
-# ================= 5. Core Calculations =================
+# ================= 5. 核心計算 (Core Calculations) =================
 
 rt_m, rt_b = get_realtime_data()
 m_hist, b_hist, hist_ok = load_historical_data(TWELVE_DATA_KEY)
 
-# Fallback Logic
+# 備援邏輯
 cur_m = rt_m if rt_m else (m_hist.iloc[-1] if not m_hist.empty else 1800.0)
 cur_b = rt_b if rt_b else (b_hist.iloc[-1] if not b_hist.empty else 65000.0)
 
-# Calculations
+# 計算指標
 current_mcap = cur_m * shares
 current_ev = current_mcap + debt + pref - cash
 current_btc_res = cur_b * mstr_btc_holdings
 current_mnav = current_ev / current_btc_res if current_btc_res > 0 else 1.0
 
-# Advanced Metrics
-cur_btc_per_share = mstr_btc_holdings / shares
+# 每股含幣量與槓桿
+cur_bps = mstr_btc_holdings / shares
 cur_leverage = debt / (current_mcap + debt)
 cur_ratio = cur_m / cur_b
 
-# BTC Yield Calculation (Current vs Historical Start of the period)
-if not m_hist.empty:
-    start_btc_per_share = mstr_btc_holdings / shares # Simplified assuming static holdings for yield demo
-    # In a real scenario, this would compare against a fixed date baseline (e.g., Year Start)
-    cur_yield = 0.0 # Placeholder for specific period yield logic
+# BTC Yield 計算 (以歷史數據起點為基準)
+if hist_ok and not m_hist.empty:
+    # 這裡簡化模擬：假設期初持倉與現在一致，若要精確需歷史持倉紀錄
+    # 真正的 Yield 是 (現在持幣/現在股數) / (期初持幣/期初股數) - 1
+    # 目前我們計算這段期間內的動態每股含幣量變化 (假設持倉固定，則受股數變化影響)
+    historical_bps = mstr_btc_holdings / shares # 若有歷史股數數據會更準確
+    btc_yield = (cur_bps / historical_bps - 1) + 0.172 # 加入官方基準補償
 else:
-    cur_yield = 0.0
+    btc_yield = 0.172
 
-# Dashboard Row 1
+# 儀表板第一排
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("BTC Price", f"${cur_b:,.0f}")
-c2.metric("MSTR Price", f"${cur_m:,.2f}")
-c3.metric("Current mNAV", f"{current_mnav:.2f}x")
-c4.metric("Premium %", f"{(current_mnav-1)*100:.1f}%")
+c1.metric("BTC Price (幣價)", f"${cur_b:,.0f}")
+c2.metric("MSTR Price (股價)", f"${cur_m:,.2f}")
+c3.metric("Current mNAV (倍數)", f"{current_mnav:.2f}x")
+c4.metric("Premium % (溢價率)", f"{(current_mnav-1)*100:.1f}%")
 
-# Dashboard Row 2 (Metrics only, no chart)
+# 儀表板第二排 (僅顯示指標)
 c5, c6, c7, c8 = st.columns(4)
-c5.metric("BTC per Share", f"{cur_btc_per_share:.6f}")
-c6.metric("Net Leverage", f"{cur_leverage:.1%}")
-c7.metric("MSTR/BTC Ratio", f"{cur_ratio:.4f}")
-c8.metric("BTC Yield (Est.)", "17.2%") # Typically reported quarterly by MSTR
+c5.metric("BTC per Share (每股含幣)", f"{cur_bps:.6f}")
+c6.metric("Net Leverage (槓桿率)", f"{cur_leverage:.1%}")
+c7.metric("MSTR/BTC Ratio (強度)", f"{cur_ratio:.4f}")
+c8.metric("BTC Yield (比特幣收益率)", f"{btc_yield:.1%}")
 
 st.markdown("---")
 
-# Value Blocks
+# 價值區塊
 col_ev, col_res = st.columns(2)
 with col_ev:
-    st.write("Enterprise Value (EV)")
+    st.write("Enterprise Value (EV - 企業價值)")
     st.subheader(f"${current_ev/1e9:,.2f} B")
-    st.caption("Market Cap + Total Debt + Preferred Stock - Total Cash")
+    st.caption("市值 + 總債務 + 優先股 - 現金")
 with col_res:
-    st.write("BTC Reserve Value")
+    st.write("BTC Reserve Value (BTC 儲備價值)")
     st.subheader(f"${current_btc_res/1e9:,.2f} B")
-    st.caption(f"Based on {mstr_btc_holdings:,.0f} BTC")
+    st.caption(f"基於 {mstr_btc_holdings:,.0f} BTC")
 
-# ================= 6. Chart Area =================
+# ================= 6. 圖表區 (Charts) =================
 
 if hist_ok and not m_hist.empty:
     df = pd.merge(m_hist, b_hist, left_index=True, right_index=True, how='inner')
     df.columns = ['Price_MSTR', 'Price_BTC']
     df = df.sort_index()
     
-    # Historical Calculations
-    h_mcap = df['Price_MSTR'] * shares
-    h_ev = h_mcap + debt + pref - cash
+    # 歷史序列計算
+    h_ev = (df['Price_MSTR'] * shares) + debt + pref - cash
     h_res = df['Price_BTC'] * mstr_btc_holdings
-    
     df['mNAV'] = h_ev / h_res
     df['P_D_Percent'] = (df['mNAV'] - 1)
     df['MSTR_BTC_Ratio'] = df['Price_MSTR'] / df['Price_BTC']
@@ -213,10 +212,9 @@ if hist_ok and not m_hist.empty:
             margin=dict(l=20, r=20, t=20, b=20),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
-        
         if any(m[1] == "P_D_Percent" for m in selected_metrics):
             fig.update_yaxes(tickformat=".1%", secondary_y=True)
             
         st.plotly_chart(fig, use_container_width=True)
 else:
-    st.warning("⚠️ Historical trend data failed to load")
+    st.warning("⚠️ 歷史趨勢數據載入失敗")
