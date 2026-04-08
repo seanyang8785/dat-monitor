@@ -4,106 +4,117 @@ import pandas as pd
 import requests
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import io
 
 # ================= 1. 初始化與頁面設定 =================
 st.set_page_config(page_title="DAT.co 監測站", layout="wide")
 
 st.title("📊 DAT.co (Digital Asset Treasury) 財務指標監測")
-st.write("本站監測 MicroStrategy (MSTR) 的各項指標及其與比特幣的關係。")
+st.write("本站即時監控 MicroStrategy (MSTR) 的比特幣本位財務表現。")
 
-# --- 定義常數 ---
-# 根據 2026 年初數據，MSTR 總股數約為 2.2 億股 (請依實際情況微調)
-TOTAL_SHARES = 220000000 
+# --- API 配置 ---
+TWELVE_DATA_KEY = "42d2074881da4044b2c7dc363208af13"
 
-# ================= 2. 數據獲取函數 =================
+# ================= 2. 核心數據抓取函數 =================
 
 @st.cache_data(ttl=3600)
 def get_mstr_holdings():
-    """從 CoinGecko API 獲取最新的 MSTR 持幣量"""
+    """獲取 MSTR 最新比特幣持倉量"""
     url = "https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin"
-    headers = {"User-Agent": "Mozilla/5.0"}
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
         data = response.json()
-        companies = data.get('companies', [])
-        for co in companies:
+        for co in data.get('companies', []):
             if "Strategy" in co.get('name', ''):
                 return float(co.get('total_holdings', 0))
-    except Exception as e:
-        st.sidebar.error(f"API 抓取失敗: {e}")
-    # 預設保險值
-    return 252220.0
+    except:
+        pass
+    return 766970.0  # 2026/04 預設保險值
+
+@st.cache_data(ttl=86400)
+def get_mstr_shares(api_key):
+    """獲取 MSTR 最新發行總股數"""
+    url = f"https://api.twelvedata.com/quote?symbol=MSTR&apikey={api_key}"
+    try:
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        # 嘗試從統計數據中獲取流通股數
+        shares = data.get('shares_outstanding') or data.get('statistics', {}).get('shares_outstanding')
+        if shares:
+            return float(shares)
+    except:
+        pass
+    return 380000000.0  # 2026/04 預設保險值 (約 3.8 億股)
 
 @st.cache_data(ttl=600)
 def load_market_data(api_key):
-    """從 Twelve Data 獲取股價與幣價"""
+    """獲取 MSTR 與 BTC 歷史收盤價"""
     td = TDClient(apikey=api_key)
-    # 抓取 100 天數據
     mstr_ts = td.time_series(symbol="MSTR", interval="1day", outputsize=100).as_pandas()
     btc_ts = td.time_series(symbol="BTC/USD", interval="1day", outputsize=100).as_pandas()
     
-    # 統一處理欄位名稱 (轉小寫)
+    # 統一欄位名稱
     mstr_ts.columns = [c.lower() for c in mstr_ts.columns]
     btc_ts.columns = [c.lower() for c in btc_ts.columns]
     
     return mstr_ts['close'], btc_ts['close']
 
-# ================= 3. 執行數據處理流 =================
+# ================= 3. 數據處理流 =================
 
-# A. 獲取持倉量
+# A. 獲取基本參數
 mstr_btc_holdings = get_mstr_holdings()
+total_shares = get_mstr_shares(TWELVE_DATA_KEY)
 
-# B. 獲取市場價格
+# B. 抓取價格並合併
 try:
-    mstr_close, btc_close = load_market_data("42d2074881da4044b2c7dc363208af13")
-    
-    # C. 合併並對齊日期
+    mstr_close, btc_close = load_market_data(TWELVE_DATA_KEY)
     df = pd.merge(mstr_close, btc_close, left_index=True, right_index=True, how='inner')
     df.columns = ['Price_MSTR', 'Price_BTC']
     df = df.sort_index()
 
-    # D. [核心] 計算衍生指標 - 必須在勾選單之前完成
-    df['NAV'] = (df['Price_BTC'] * mstr_btc_holdings) / TOTAL_SHARES
+    # C. 計算衍生指標 (所有繪圖所需的 Key 都在這裡產生)
+    # 1. 每股含幣量
+    df['BTC_per_Share'] = mstr_btc_holdings / total_shares
+    # 2. 估計 NAV
+    df['NAV'] = df['Price_BTC'] * df['BTC_per_Share']
+    # 3. mNAV 倍數
     df['mNAV'] = df['Price_MSTR'] / df['NAV']
-    df['P_D_Percent'] = ((df['Price_MSTR'] - df['NAV']) / df['NAV'])
+    # 4. 溢價/折價率
+    df['P_D_Percent'] = ((df['Price_MSTR'] - df['NAV']) / df['NAV']) * 100
 
 except Exception as e:
-    st.error(f"數據處理發生錯誤: {e}")
+    st.error(f"數據加載失敗，請檢查 API Key: {e}")
     df = pd.DataFrame()
 
-# ================= 4. UI 控制面板 (側邊欄) =================
+# ================= 4. UI 側邊欄控制 =================
 
 st.sidebar.header("控制面板")
-st.sidebar.info(f"目前監測持倉：{mstr_btc_holdings:,.0f} BTC")
+st.sidebar.metric("監測持倉 (BTC)", f"{mstr_btc_holdings:,.0f}")
+st.sidebar.metric("流通股數 (Shares)", f"{total_shares/1e6:.1f}M")
 
 selected_metrics = []
-with st.sidebar.expander("📈 選擇顯示指標", expanded=True):
-    # 標籤與 DataFrame 欄位的對應關係
+with st.sidebar.expander("指標顯示切換", expanded=True):
     options = {
         "MSTR 股價": "Price_MSTR",
         "估計 NAV": "NAV",
         "mNAV 倍數": "mNAV",
         "溢價/折價率 (%)": "P_D_Percent"
     }
-    
     for i, (label, col_name) in enumerate(options.items()):
-        # 加入唯一的 key 以防止 DuplicateElementId 錯誤
-        if st.checkbox(label, value=(i == 0), key=f"metric_check_{i}"):
+        # 使用唯一 Key 防止重複 ID 錯誤
+        if st.checkbox(label, value=(i in [0, 1]), key=f"chk_{i}"):
             selected_metrics.append((label, col_name))
 
-# ================= 5. 繪圖與顯示邏輯 =================
+# ================= 5. 專業繪圖函數 =================
 
-def plot_mstr_chart(df, selected_metrics):
+def plot_professional_chart(df, selected_metrics):
     if not selected_metrics or df.empty:
-        st.info("請在側邊欄勾選指標或檢查 API 狀態。")
+        st.info("請在側邊欄勾選指標以開始分析。")
         return
 
-    # 建立支援雙 Y 軸的圖表
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
     for label, col in selected_metrics:
-        # 判斷是否放在右側 Y 軸 (比例與百分比)
+        # 決定軸位：價格類放左邊，比例類放右邊
         is_secondary = col in ["mNAV", "P_D_Percent"]
         
         fig.add_trace(
@@ -112,48 +123,53 @@ def plot_mstr_chart(df, selected_metrics):
                 y=df[col], 
                 name=label,
                 mode='lines',
-                line=dict(width=2)
+                line=dict(width=2.5)
             ),
             secondary_y=is_secondary
         )
-    
-    # 加上 0% 基準線 (如果選了溢價率)
-    if any(m[1] == "P_D_Percent" for m in selected_metrics):
+
+    # 裝飾：如果選了溢價率，增加 0% 水平線
+    if "P_D_Percent" in [m[1] for m in selected_metrics]:
         fig.add_hline(y=0, line_dash="dash", line_color="gray", secondary_y=True)
 
-    # 佈局美化
+    # 佈局設定
     fig.update_layout(
         template="plotly_dark",
         hovermode="x unified",
-        xaxis=dict(
-            range=[df.index.min(), df.index.max()],
-            fixedrange=False # 允許放大
-        ),
+        height=600,
+        xaxis=dict(range=[df.index.min(), df.index.max()], fixedrange=False),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
 
-    # 座標軸鎖定設定
-    fig.update_yaxes(title_text="價格 (USD)", secondary_y=False, fixedrange=True)
-    fig.update_yaxes(title_text="倍數 / 百分比", secondary_y=True, fixedrange=True)
+    # 軸標題與鎖定 (防止 Y 軸被縮放搞亂)
+    fig.update_yaxes(title_text="Price (USD)", secondary_y=False, fixedrange=True)
+    fig.update_yaxes(title_text="Ratio / %", secondary_y=True, fixedrange=True)
 
-    # 限制縮放功能
+    # 互動限制：只能框選放大，不能滾輪縮小
     config = {
-        'scrollZoom': False, # 禁止滾輪縮小
+        'scrollZoom': False,
         'modeBarButtonsToRemove': ['zoomOut2d', 'autoScale2d', 'resetScale2d', 'pan2d'],
         'displaylogo': False
     }
 
     st.plotly_chart(fig, use_container_width=True, config=config)
 
-# --- 主畫面呈現 ---
-if not df.empty:
-    # 顯示圖表
-    plot_mstr_chart(df, selected_metrics)
+# ================= 6. 主畫面顯示 =================
 
-    # 顯示關鍵指標卡片
-    c1, c2, c3 = st.columns(3)
-    c1.metric("最新股價", f"${df['Price_MSTR'].iloc[-1]:,.2f}")
-    c2.metric("最新 mNAV", f"{df['mNAV'].iloc[-1]:.2f}x")
-    c3.metric("溢價/折價", f"{df['P_D_Percent'].iloc[-1]:.1f}%")
+if not df.empty:
+    # 頂部指標卡
+    c1, c2, c3, c4 = st.columns(4)
+    latest = df.iloc[-1]
+    c1.metric("BTC 價格", f"${latest['Price_BTC']:,.0f}")
+    c2.metric("MSTR 股價", f"${latest['Price_MSTR']:,.2f}")
+    c3.metric("當前 mNAV", f"{latest['mNAV']:.2f}x")
+    c4.metric("溢價/折價", f"{latest['P_D_Percent']:.1f}%")
+
+    # 繪製圖表
+    plot_professional_chart(df, selected_metrics)
+    
+    # 數據表摘要
+    with st.expander("查看原始數據表"):
+        st.dataframe(df.style.format("{:,.2f}"))
 else:
-    st.warning("等待數據加載中...")
+    st.warning("無法獲取市場數據，請確認網路連線或 Twelve Data API 額度。")
