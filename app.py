@@ -96,7 +96,7 @@ mstr_btc_holdings, btc_ok = get_mstr_holdings()
 # ================= 4. 側邊欄 (純顯示模式) =================
 
 with st.sidebar:
-    st.header("⚙️ 基準參數監測")
+    st.header("基準參數監測")
     
     # 顯示 BTC 持倉與警告
     btc_display = f"{mstr_btc_holdings:,.0f} BTC"
@@ -105,9 +105,7 @@ with st.sidebar:
         st.caption(":red[CoinGecko 連線失敗，目前為預設值]")
     else:
         st.write(f"持倉: **{btc_display}**")
-    
-    st.divider()
-    
+        
     # 顯示資本結構與警告
     if not fund_ok:
         st.error("⚠️ 財務數據抓取失敗 (使用基準值)")
@@ -122,7 +120,7 @@ with st.sidebar:
         st.rerun()
         
     st.divider()
-    st.subheader("📊 指標切換")
+    st.subheader("指標切換")
     selected_metrics = []
     options = {"MSTR 股價": "Price_MSTR", "估計 NAV": "NAV", "mNAV 倍數": "mNAV", "溢價率": "P_D_Percent"}
     for label, col in options.items():
