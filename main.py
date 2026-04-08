@@ -10,17 +10,31 @@ st.write("本站監測 MicroStrategy (MSTR) 的 mNAV 指標及其與比特幣的
 
 def scrape_mstr_holdings():
     url = "https://bitcointreasuries.net/"
-    # 抓取網頁中的所有表格
-    tables = pd.read_html(url)
-    df_holdings = tables[0] # 通常第一個表格就是上市公司名單
     
-    st.dataframe(df)
+    # 偽裝成一般的 Chrome 瀏覽器
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
     
-    # # 尋找 MSTR 那一行並取得持幣量欄位
-    # # 注意：網頁結構變動可能導致此處失效，需視情況調整
-    # mstr_row = df_holdings[df_holdings['Entity'].str.contains("MicroStrategy", na=False)]
-    # holdings = mstr_row['BTC Holdings'].values[0]
-    # return float(holdings.replace(',', ''))
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        # 如果狀態碼不是 200，會直接噴錯進入 except
+        response.raise_for_status() 
+        
+        # 使用抓下來的 HTML 文本給 Pandas 解析
+        tables = pd.read_html(response.text)
+        df = tables[0]
+        
+        # 尋找 MicroStrategy (這段邏輯維持不變)
+        mstr_row = df[df.iloc[:, 0].str.contains("MicroStrategy", na=False)]
+        holdings_str = str(mstr_row.iloc[0, 2])
+        holdings = float(holdings_str.replace(',', '').replace(' BTC', ''))
+        return holdings
+        
+    except Exception as e:
+        st.error(f"自動抓取失敗：{e}")
+        # 萬一失敗，回傳一個寫死的數值，保證 App 不會當機
+        return 252220
 
 # 1. 定義數據 (以 MSTR 為例)
 ticker_symbol = "MSTR"
