@@ -49,7 +49,7 @@ def get_realtime_data():
     try:
         b_res = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=3).json()
         b_p = float(b_res['price'])
-    except: st.warning("BTC 即時報價連線失敗")
+    except Exception as e: st.warning(f"BTC 即時報價連線失敗:{e}")
     try:
         m_p = yf.Ticker("MSTR").fast_info['last_price']
     except: st.warning("MSTR 即時報價連線失敗")
