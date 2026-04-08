@@ -66,7 +66,7 @@ try:
     # D. [核心] 計算衍生指標 - 必須在勾選單之前完成
     df['NAV'] = (df['Price_BTC'] * mstr_btc_holdings) / TOTAL_SHARES
     df['mNAV'] = df['Price_MSTR'] / df['NAV']
-    df['P_D_Percent'] = ((df['Price_MSTR'] - df['NAV']) / df['NAV']) * 100
+    df['P_D_Percent'] = ((df['Price_MSTR'] - df['NAV']) / df['NAV'])
 
 except Exception as e:
     st.error(f"數據處理發生錯誤: {e}")
