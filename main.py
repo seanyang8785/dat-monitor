@@ -32,7 +32,7 @@ def get_mstr_holdings():
         st.sidebar.warning(f"API 抓取失敗，使用預設持倉量。錯誤原因: {e}")
         
     # 萬一 API 壞掉或沒抓到，回傳最新的已知數值 (2026/04 數據約為 252220)
-    return 252220.0
+    return 766,970
 
 # 1. 定義數據 (以 MSTR 為例)
 ticker_symbol = "MSTR"
