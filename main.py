@@ -6,33 +6,26 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import math
 
-# --- 在側邊欄建立勾選清單 ---
-st.sidebar.subheader("顯示指標設定")
-
-# 定義指標名稱與對應的 DataFrame 欄位
-options = {
-    "MSTR 股價": "Price_MSTR",
-    "估計 NAV": "NAV",
-    "mNAV 倍數": "mNAV",
-    "溢價/折價率 (%)": "P_D_Percent"
-}
-
-# 儲存用戶勾選的指標
-selected_metrics = []
-for label, col_name in options.items():
-    if st.sidebar.checkbox(label, value=(label == "MSTR 股價")): # 預設勾選股價
-        selected_metrics.append((label, col_name))
-
 # 設置網頁標題
 st.set_page_config(page_title="DAT.co 監測站", layout="wide")
 
 st.title("📊 DAT.co (Digital Asset Treasury) 財務指標監測")
 st.write("本站監測 MicroStrategy (MSTR) 的各項指標及其與比特幣的關係。")
 
-selected_metrics = []
-for label, col_name in options.items():
-    if st.sidebar.checkbox(label, value=(label == "MSTR 股價")): # 預設勾選股價
-        selected_metrics.append((label, col_name))
+st.sidebar.header("控制面板")
+with st.sidebar.expander("📈 選擇顯示指標", expanded=True):
+    options = {
+        "MSTR 股價": "Price_MSTR",
+        "估計 NAV": "NAV",
+        "mNAV 倍數": "mNAV",
+        "溢價/折價率 (%)": "P_D_Percent"
+    }
+    
+    selected_metrics = []
+    for i, (label, col_name) in enumerate(options.items()):
+        # 預設勾選第一個
+        if st.checkbox(label, value=(i == 0), key=f"metric_{i}"):
+            selected_metrics.append((label, col_name))
 
 @st.cache_data(ttl=60)  # 每小時更新一次持倉數據即可，不用太頻繁
 def get_mstr_holdings():
