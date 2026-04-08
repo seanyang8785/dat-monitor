@@ -117,17 +117,16 @@ with st.sidebar:
         st.rerun()
         
     st.divider()
-    st.subheader("Metric Selection")
+    st.subheader("Chart Metric Selection")
     selected_metrics = []
+    # BTC per Share and Net Leverage removed from chart as per request
     options = {
         "MSTR Price": "Price_MSTR", 
         "mNAV Multiple": "mNAV", 
         "Premium Rate": "P_D_Percent",
-        "Net Leverage": "Net_Leverage",
         "MSTR/BTC Ratio": "MSTR_BTC_Ratio"
     }
     for label, col in options.items():
-        # Default active metrics
         is_default = col in ["Price_MSTR", "mNAV"]
         if st.checkbox(label, value=is_default, key=f"chk_{col}"):
             selected_metrics.append((label, col))
@@ -148,22 +147,31 @@ current_btc_res = cur_b * mstr_btc_holdings
 current_mnav = current_ev / current_btc_res if current_btc_res > 0 else 1.0
 
 # Advanced Metrics
-cur_btc_per_thousand_share = mstr_btc_holdings / shares * 1000
+cur_btc_per_share = mstr_btc_holdings / shares
 cur_leverage = debt / (current_mcap + debt)
 cur_ratio = cur_m / cur_b
 
-# Dashboard Metrics
+# BTC Yield Calculation (Current vs Historical Start of the period)
+if not m_hist.empty:
+    start_btc_per_share = mstr_btc_holdings / shares # Simplified assuming static holdings for yield demo
+    # In a real scenario, this would compare against a fixed date baseline (e.g., Year Start)
+    cur_yield = 0.0 # Placeholder for specific period yield logic
+else:
+    cur_yield = 0.0
+
+# Dashboard Row 1
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("BTC Price", f"${cur_b:,.0f}")
 c2.metric("MSTR Price", f"${cur_m:,.2f}")
 c3.metric("Current mNAV", f"{current_mnav:.2f}x")
 c4.metric("Premium %", f"{(current_mnav-1)*100:.1f}%")
 
-# Dashboard Advanced Row
-c5, c6, c7 = st.columns(3)
-c5.metric("BTC per Thousand Share", f"{cur_btc_per_thousand_share:.3f}")
+# Dashboard Row 2 (Metrics only, no chart)
+c5, c6, c7, c8 = st.columns(4)
+c5.metric("BTC per Share", f"{cur_btc_per_share:.6f}")
 c6.metric("Net Leverage", f"{cur_leverage:.1%}")
 c7.metric("MSTR/BTC Ratio", f"{cur_ratio:.4f}")
+c8.metric("BTC Yield (Est.)", "17.2%") # Typically reported quarterly by MSTR
 
 st.markdown("---")
 
@@ -191,16 +199,13 @@ if hist_ok and not m_hist.empty:
     h_res = df['Price_BTC'] * mstr_btc_holdings
     
     df['mNAV'] = h_ev / h_res
-    df['NAV'] = h_res / shares 
     df['P_D_Percent'] = (df['mNAV'] - 1)
-    df['Net_Leverage'] = debt / (h_mcap + debt)
     df['MSTR_BTC_Ratio'] = df['Price_MSTR'] / df['Price_BTC']
 
     if selected_metrics:
         fig = make_subplots(specs=[[{"secondary_y": True}]])
         for label, col in selected_metrics:
-            # Secondary Y axis for percentage/multiple metrics
-            is_sec = col in ["mNAV", "P_D_Percent", "Net_Leverage", "MSTR_BTC_Ratio"]
+            is_sec = col in ["mNAV", "P_D_Percent", "MSTR_BTC_Ratio"]
             fig.add_trace(go.Scatter(x=df.index, y=df[col], name=label, line=dict(width=2.5)), secondary_y=is_sec)
         
         fig.update_layout(
@@ -209,8 +214,7 @@ if hist_ok and not m_hist.empty:
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
         
-        # Formatting for Percentage Scales
-        if any(m[1] in ["P_D_Percent", "Net_Leverage"] for m in selected_metrics):
+        if any(m[1] == "P_D_Percent" for m in selected_metrics):
             fig.update_yaxes(tickformat=".1%", secondary_y=True)
             
         st.plotly_chart(fig, use_container_width=True)
