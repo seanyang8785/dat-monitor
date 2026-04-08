@@ -27,8 +27,7 @@ def get_mstr_fundamentals():
         shares = info.get('impliedSharesOutstanding') or info.get('sharesOutstanding')
         debt = info.get('totalDebt')
         cash = info.get('totalCash')
-        if not shares: raise ValueError("Shares data missing")
-        return float(shares), float(debt or 8247597056.0), 3400000000.0, float(cash or 2250000000.0)
+        return float(shares or 379425000.0), float(debt or 8247597056.0), 3400000000.0, float(cash or 2250000000.0)
     except:
         return 379425000.0, 8247597056.0, 3400000000.0, 2250000000.0
 
@@ -48,15 +47,14 @@ def get_realtime_data():
     m_p, b_p = None, None
     try:
         b_res = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=3).json()
-        print(b_res['price'])
         b_p = float(b_res['price'])
-    except Exception as e: st.warning(f"BTC 即時報價連線失敗:{e}")
+    except: st.warning("BTC 即時報價抓取失敗")
     try:
         m_p = yf.Ticker("MSTR").fast_info['last_price']
-    except: st.warning("MSTR 即時報價連線失敗")
+    except: st.warning("MSTR 即時報價抓取失敗")
     return m_p, b_p
 
-# ================= 3. 側邊欄渲染 (保證一定顯示) =================
+# ================= 3. 基礎參數初始化 =================
 
 total_shares, total_debt, total_preferred, total_cash = get_mstr_fundamentals()
 mstr_btc_holdings = 766970.0 
@@ -68,11 +66,9 @@ with st.sidebar:
     st.write(f"總債務: ${total_debt/1e9:.2f}B")
     st.write(f"優先股: ${total_preferred/1e9:.2f}B")
     st.write(f"現金: ${total_cash/1e9:.2f}B")
-    
     if st.button("強制刷新數據"):
         st.cache_data.clear()
         st.rerun()
-        
     st.divider()
     st.subheader("指標切換")
     selected_metrics = []
@@ -81,74 +77,70 @@ with st.sidebar:
         if st.checkbox(label, value=(col in ["Price_MSTR", "mNAV"]), key=f"chk_{col}"):
             selected_metrics.append((label, col))
 
-# ================= 4. 主程序邏輯 =================
+# ================= 4. 核心數據顯示區 (確保一定顯示) =================
+
+# 獲取最新價格用於計算即時 EV/Reserve
+rt_m, rt_b = get_realtime_data()
+
+# 即使 API 失敗也提供基本顯示，避免空白
+cur_m = rt_m if rt_m else 0.0
+cur_b = rt_b if rt_b else 0.0
+
+current_mcap = cur_m * total_shares
+current_ev = current_mcap + total_debt + total_preferred - total_cash
+current_btc_res = cur_b * mstr_btc_holdings
+current_mnav = current_ev / current_btc_res if current_btc_res > 0 else 0.0
+
+# 儀表板
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("BTC 價格", f"${cur_b:,.0f}")
+c2.metric("MSTR 股價", f"${cur_m:,.2f}")
+c3.metric("當前 mNAV", f"{current_mnav:.2f}x")
+c4.metric("溢價/折價率", f"{(current_mnav-1)*100:.1f}%")
+
+st.markdown("---")
+# 直接顯示 EV 與 Reserve
+col_ev, col_res = st.columns(2)
+with col_ev:
+    st.write("Enterprise Value (EV)")
+    st.subheader(f"${current_ev/1e9:,.2f} B")
+    st.caption("市值 + 債務 + 優先股 - 現金")
+with col_res:
+    st.write("BTC Reserve Value")
+    st.subheader(f"${current_btc_res/1e9:,.2f} B")
+    st.caption(f"持倉 {mstr_btc_holdings:,.0f} BTC 的即時市值")
+
+# ================= 5. 歷史趨勢圖表區 =================
 
 try:
     m_hist, b_hist = load_historical_data(TWELVE_DATA_KEY)
     
     if m_hist.empty or b_hist.empty:
-        st.error("歷史數據載入失敗，無法繪製分析圖表。")
+        st.info("歷史數據載入失敗，僅顯示即時監控數據。")
     else:
         df = pd.merge(m_hist, b_hist, left_index=True, right_index=True, how='inner')
         df.columns = ['Price_MSTR', 'Price_BTC']
         df = df.sort_index()
         
-        # 即時數據
-        rt_m, rt_b = get_realtime_data()
+        # 將即時價補進 DataFrame
         if rt_m: df.iloc[-1, df.columns.get_loc('Price_MSTR')] = rt_m
         if rt_b: df.iloc[-1, df.columns.get_loc('Price_BTC')] = rt_b
 
-        # 核心財務計算
-        m_cap = df['Price_MSTR'] * total_shares
-        ev = m_cap + total_debt + total_preferred - total_cash
-        btc_res = df['Price_BTC'] * mstr_btc_holdings
-        
-        df['mNAV'] = ev / btc_res
-        df['NAV'] = btc_res / total_shares 
+        # 歷史計算
+        hist_mcap = df['Price_MSTR'] * total_shares
+        hist_ev = hist_mcap + total_debt + total_preferred - total_cash
+        hist_res = df['Price_BTC'] * mstr_btc_holdings
+        df['mNAV'] = hist_ev / hist_res
+        df['NAV'] = hist_res / total_shares 
         df['P_D_Percent'] = (df['mNAV'] - 1)
 
-        # 頂部指標卡
-        latest = df.iloc[-1]
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("BTC 價格", f"${latest['Price_BTC']:,.0f}")
-        c2.metric("MSTR 股價", f"${latest['Price_MSTR']:,.2f}")
-        c3.metric("當前 mNAV", f"{latest['mNAV']:.2f}x")
-        c4.metric("溢價/折價率", f"{latest['P_D_Percent']*100:.1f}%")
-
-        # 重要數據顯示
-        st.markdown("---")
-        col_ev, col_res = st.columns(2)
-        with col_ev:
-            st.write("Enterprise Value (EV)")
-            st.subheader(f"${ev.iloc[-1]/1e9:,.2f} B")
-            st.caption("計算: 市值 + 債務 + 優先股 - 現金")
-        with col_res:
-            st.write("BTC Reserve Value")
-            st.subheader(f"${btc_res.iloc[-1]/1e9:,.2f} B")
-            st.caption(f"計算: {mstr_btc_holdings:,.0f} BTC * 即時幣價")
-
-        # 繪圖區
-        if not selected_metrics:
-            st.info("請在左側勾選指標以顯示分析圖表。")
-        else:
+        if selected_metrics:
             fig = make_subplots(specs=[[{"secondary_y": True}]])
             for label, col in selected_metrics:
                 is_sec = col in ["mNAV", "P_D_Percent"]
-                fig.add_trace(go.Scatter(x=df.index, y=df[col], name=label, line=dict(width=2.5)), secondary_y=is_sec)
-            
-            fig.update_layout(
-                template="plotly_dark", 
-                hovermode="x unified",
-                margin=dict(l=20, r=20, t=20, b=20),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-            )
-            
-            if any(m[1] == "P_D_Percent" for m in selected_metrics):
-                fig.update_yaxes(tickformat=".1%", secondary_y=True)
-            elif any(m[1] == "mNAV" for m in selected_metrics):
-                fig.update_yaxes(tickformat=".2f", secondary_y=True)
-                
+                fig.add_trace(go.Scatter(x=df.index, y=df[col], name=label), secondary_y=is_sec)
+            fig.update_layout(template="plotly_dark", hovermode="x unified", margin=dict(l=20, r=20, t=20, b=20))
             st.plotly_chart(fig, use_container_width=True)
 
 except Exception as e:
-    st.error(f"系統執行異常: {e}")
+    st.error(f"分析模型執行異常: {e}")
