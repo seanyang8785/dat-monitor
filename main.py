@@ -1,6 +1,7 @@
 import streamlit as st
 from twelvedata import TDClient
 import pandas as pd
+import requests
 
 # 設置網頁標題
 st.set_page_config(page_title="DAT.co 監測站", layout="wide")
