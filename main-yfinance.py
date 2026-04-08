@@ -115,4 +115,4 @@ if not df.empty:
         fig.add_trace(go.Scatter(x=df.index, y=df[col], name=label), secondary_y=is_sec)
     
     fig.update_layout(template="plotly_dark", hovermode="x unified")
-    st.plotly_chart(fig, width=True)
+    st.plotly_chart(fig, width='stretch')
