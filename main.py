@@ -93,11 +93,11 @@ def plot_mstr_chart(df):
     # --- 鎖定縮放的核心設定 ---
     fig.update_layout(
         xaxis=dict(
-            # 限制 X 軸範圍：最小就是數據的第一天，最大就是最後一天
-            range=[df.index.min(), df.index.max()], 
-            # 關鍵：禁止在 X 軸上進行「滾輪縮放」(這通常是導致縮小過頭的主因)
-            fixedrange=False, 
-            title="Date"
+            rangeslider=dict(
+                visible=True,
+                range=[df.index.min(), df.index.max()] # 鎖定滑動條的物理長度
+            ),
+            type="date"
         ),
         yaxis=dict(
             # Y 軸可以鎖定，因為 mNAV 的倍數範圍通常很固定
