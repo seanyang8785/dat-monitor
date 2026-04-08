@@ -88,6 +88,7 @@ if not df.empty:
     st.sidebar.write(f"股數: **{total_shares/1e6:.1f}M (Basic)**")
     st.sidebar.write(f"債務: **${total_debt/1e9:.2f}B**")
     st.sidebar.write(f"優先股: **${total_preferred/1e9:.2f}B**")
+    st.sidebar.write(f"現金: **${total_cash/1e9:.2f}B**")
     
     st.sidebar.markdown("---")
     st.sidebar.subheader("分子/分母實時監測")
