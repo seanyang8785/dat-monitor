@@ -150,5 +150,5 @@ else:
     df['mNAV'] = df['Market_Cap'] / df['BTC_Value_Held']
 
     # 5. UI 顯示
-    plot_mstr_chart(df)
+    plot_mstr_chart(df,selected_metrics)
     st.metric("最新 mNAV 溢價倍數", f"{df['mNAV'].iloc[-1]:.2f}")
