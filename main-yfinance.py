@@ -77,7 +77,7 @@ try:
     df['NAV'] = btc_asset_value / total_shares
     
     # 3. 溢價率 (%)
-    df['P_D_Percent'] = (df['mNAV'] - 1) * 100
+    df['P_D_Percent'] = (df['mNAV'] - 1)
 
 except Exception as e:
     st.error(f"數據計算失敗: {e}")
