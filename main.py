@@ -77,26 +77,51 @@ btc_raw.columns = [c.lower() for c in btc_raw.columns]
 mstr_close = mstr_raw['close']
 btc_close = btc_raw['close']
 
-def plot_mstr_chart(df):
+def plot_locked_chart(df):
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df.index, y=df['mNAV'], name='mNAV Premium'))
-
-    # 配置互動行為
-    fig.update_layout(
-        # 允許放大 (Zoom)，但可以透過限制範圍來防止過度縮小
-        xaxis=dict(
-            rangeslider=dict(visible=False), # 關閉下方的滑動條以防誤觸縮放
-            fixedrange=False # 設為 False 允許放大
-        ),
-        yaxis=dict(fixedrange=True), # 鎖定 Y 軸不讓它被隨意縮放
-        dragmode='zoom', # 預設滑鼠模式為放大
-    )
     
-    # 移除「縮小 (Zoom out)」按鈕，只留下「放大 (Zoom in)」
-    st.plotly_chart(fig, config={
-        'modeBarButtonsToRemove': ['zoomOut2d', 'autoscale2d', 'resetScale2d'],
-        'displaylogo': False
-    })
+    # 建立 mNAV 曲線
+    fig.add_trace(go.Scatter(
+        x=df.index, 
+        y=df['mNAV'], 
+        mode='lines',
+        line=dict(color='#00FFAA', width=2),
+        fill='tozeroy', # 加上陰影面積，看起來更專業
+        name='mNAV Premium'
+    ))
+
+    # --- 鎖定縮放的核心設定 ---
+    fig.update_layout(
+        xaxis=dict(
+            # 限制 X 軸範圍：最小就是數據的第一天，最大就是最後一天
+            range=[df.index.min(), df.index.max()], 
+            # 關鍵：禁止在 X 軸上進行「滾輪縮放」(這通常是導致縮小過頭的主因)
+            fixedrange=False, 
+            title="Date"
+        ),
+        yaxis=dict(
+            # Y 軸可以鎖定，因為 mNAV 的倍數範圍通常很固定
+            fixedrange=True, 
+            title="mNAV Ratio"
+        ),
+        dragmode='zoom', # 強制滑鼠預設功能是「框選放大」
+        hovermode='x unified'
+    )
+
+    # 移除工具列中會導致「縮小」或「自動縮放」的按鈕
+    # 這樣使用者放大後，只能透過「雙擊圖表」回到預設比例
+    config = {
+        'modeBarButtonsToRemove': [
+            'zoomOut2d',    # 移除縮小按鈕
+            'pan2d',        # 移除平移（防止把圖表推到空白處）
+            'autoscale2d',  # 移除自動縮放
+            'lasso2d'
+        ],
+        'displaylogo': False,
+        'scrollZoom': False # 禁用滾輪縮放，這是防止「縮小」最有效的方法
+    }
+
+    st.plotly_chart(fig, config=config, use_container_width=True)
 
 # 4. 合併與對齊
 df = pd.merge(mstr_close, btc_close, left_index=True, right_index=True, how='inner')
