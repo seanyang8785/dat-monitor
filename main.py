@@ -3,13 +3,36 @@ from twelvedata import TDClient
 import pandas as pd
 import requests
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import math
+
+# --- 在側邊欄建立勾選清單 ---
+st.sidebar.subheader("顯示指標設定")
+
+# 定義指標名稱與對應的 DataFrame 欄位
+options = {
+    "MSTR 股價": "Price_MSTR",
+    "估計 NAV": "NAV",
+    "mNAV 倍數": "mNAV",
+    "溢價/折價率 (%)": "P_D_Percent"
+}
+
+# 儲存用戶勾選的指標
+selected_metrics = []
+for label, col_name in options.items():
+    if st.sidebar.checkbox(label, value=(label == "MSTR 股價")): # 預設勾選股價
+        selected_metrics.append((label, col_name))
 
 # 設置網頁標題
 st.set_page_config(page_title="DAT.co 監測站", layout="wide")
 
 st.title("📊 DAT.co (Digital Asset Treasury) 財務指標監測")
-st.write("本站監測 MicroStrategy (MSTR) 的 mNAV 指標及其與比特幣的關係。")
+st.write("本站監測 MicroStrategy (MSTR) 的各項指標及其與比特幣的關係。")
+
+selected_metrics = []
+for label, col_name in options.items():
+    if st.sidebar.checkbox(label, value=(label == "MSTR 股價")): # 預設勾選股價
+        selected_metrics.append((label, col_name))
 
 @st.cache_data(ttl=60)  # 每小時更新一次持倉數據即可，不用太頻繁
 def get_mstr_holdings():
@@ -56,17 +79,6 @@ def load_data():
     
     return mstr_ts, btc_ts
 
-mstr_data, btc_data = load_data()
-
-@st.cache_data
-def load_data():
-    # 抓取 MSTR (美股)
-    # Twelve Data 的欄位名稱預設通常是小寫 'close'
-    mstr_ts = td.time_series(symbol="MSTR", interval="1day", outputsize=100).as_pandas()
-    # 抓取 BTC (加密貨幣)
-    btc_ts = td.time_series(symbol="BTC/USD", interval="1day", outputsize=100).as_pandas()
-    return mstr_ts, btc_ts
-
 mstr_raw, btc_raw = load_data()
 
 # 3. 處理資料 (解決 KeyError 的核心)
@@ -78,53 +90,54 @@ btc_raw.columns = [c.lower() for c in btc_raw.columns]
 mstr_close = mstr_raw['close']
 btc_close = btc_raw['close']
 
-def plot_mstr_chart(df):
-    fig = go.Figure()
-    
-    # 建立 mNAV 曲線
-    fig.add_trace(go.Scatter(
-        x=df.index, 
-        y=df['mNAV'], 
-        mode='lines',
-        line=dict(color='#00FFAA', width=2),
-        fill='tozeroy', # 加上陰影面積，看起來更專業
-        name='mNAV Premium'
-    ))
+def plot_mstr_chart(df, selected_metrics):
+    if not selected_metrics:
+        st.info("請在側邊欄勾選至少一個指標以顯示圖表。")
+        return
 
-    y_max = math.ceil(df['mNAV'].max() * 1.2)
-    # --- 鎖定縮放的核心設定 ---
-    fig.update_layout(
-        xaxis=dict(
-            rangeslider=dict(
-                visible=True,
-                range=[df.index.min(), df.index.max()] # 鎖定滑動條的物理長度
+    # 建立一個支援雙 Y 軸的畫布
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    for label, col in selected_metrics:
+        # 判斷是否需要放在右側 Y 軸 (倍數或百分比指標)
+        is_secondary = col in ["mNAV", "P_D_Percent"]
+        
+        fig.add_trace(
+            go.Scatter(
+                x=df.index, 
+                y=df[col], 
+                name=label,
+                mode='lines',
+                line=dict(width=2)
             ),
-            type="date"
+            secondary_y=is_secondary
+        )
+
+    # 圖表佈局設定
+    fig.update_layout(
+        template="plotly_dark",
+        hovermode="x unified",
+        xaxis=dict(
+            range=[df.index.min(), df.index.max()],
+            fixedrange=False
         ),
-        yaxis=dict(
-            # Y 軸可以鎖定，因為 mNAV 的倍數範圍通常很固定
-            fixedrange=True, 
-            range=[0,y_max],
-            title="mNAV Ratio"
-        ),
-        dragmode='zoom', # 強制滑鼠預設功能是「框選放大」
-        hovermode='x unified'
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
 
-    # 移除工具列中會導致「縮小」或「自動縮放」的按鈕
-    # 這樣使用者放大後，只能透過「雙擊圖表」回到預設比例
+    # 設定左側 Y 軸 (價格)
+    fig.update_yaxes(title_text="價格 (USD)", secondary_y=False, fixedrange=True)
+    
+    # 設定右側 Y 軸 (倍數 / 百分比)
+    if any(m[1] in ["mNAV", "P_D_Percent"] for m in selected_metrics):
+        fig.update_yaxes(title_text="倍數 / 百分比", secondary_y=True, fixedrange=True)
+
+    # 鎖定縮放與移除按鈕
     config = {
-        'modeBarButtonsToRemove': [
-            'zoomOut2d',    # 移除縮小按鈕
-            'pan2d',        # 移除平移（防止把圖表推到空白處）
-            'autoscale2d',  # 移除自動縮放
-            'lasso2d'
-        ],
-        'displaylogo': False,
-        'scrollZoom': False # 禁用滾輪縮放，這是防止「縮小」最有效的方法
+        'scrollZoom': False,
+        'modeBarButtonsToRemove': ['zoomOut2d', 'autoScale2d', 'resetScale2d', 'pan2d']
     }
 
-    st.plotly_chart(fig, config=config, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, config=config)
 
 # 4. 合併與對齊
 df = pd.merge(mstr_close, btc_close, left_index=True, right_index=True, how='inner')
