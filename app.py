@@ -48,6 +48,7 @@ def get_realtime_data():
     m_p, b_p = None, None
     try:
         b_res = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=3).json()
+        print(b_res['price'])
         b_p = float(b_res['price'])
     except Exception as e: st.warning(f"BTC 即時報價連線失敗:{e}")
     try:
