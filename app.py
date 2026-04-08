@@ -123,7 +123,7 @@ with st.sidebar:
         "MSTR Price": "Price_MSTR", 
         "mNAV Multiple": "mNAV", 
         "Premium Rate": "P_D_Percent",
-        "BTC per Share": "BTC_per_Share",
+        "BTC per Thousand Share": "BTC_per_Share",
         "Net Leverage": "Net_Leverage",
         "MSTR/BTC Ratio": "MSTR_BTC_Ratio"
     }
@@ -149,7 +149,7 @@ current_btc_res = cur_b * mstr_btc_holdings
 current_mnav = current_ev / current_btc_res if current_btc_res > 0 else 1.0
 
 # Advanced Metrics
-cur_btc_per_share = mstr_btc_holdings / shares
+cur_btc_per_thousand_share = mstr_btc_holdings / shares * 1000
 cur_leverage = debt / (current_mcap + debt)
 cur_ratio = cur_m / cur_b
 
@@ -162,7 +162,7 @@ c4.metric("Premium %", f"{(current_mnav-1)*100:.1f}%")
 
 # Dashboard Advanced Row
 c5, c6, c7 = st.columns(3)
-c5.metric("BTC per Share", f"{cur_btc_per_share:.6f}")
+c5.metric("BTC per Thousand Share", f"{cur_btc_per_thousand_share:.3f}")
 c6.metric("Net Leverage", f"{cur_leverage:.1%}")
 c7.metric("MSTR/BTC Ratio", f"{cur_ratio:.4f}")
 
