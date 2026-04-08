@@ -3,6 +3,7 @@ from twelvedata import TDClient
 import pandas as pd
 import requests
 import plotly.graph_objects as go
+import math
 
 # 設置網頁標題
 st.set_page_config(page_title="DAT.co 監測站", layout="wide")
@@ -90,7 +91,7 @@ def plot_mstr_chart(df):
         name='mNAV Premium'
     ))
 
-    y_max = df['mNAV'].max() * 1.2
+    y_max = math.ceil(df['mNAV'].max() * 1.2)
     # --- 鎖定縮放的核心設定 ---
     fig.update_layout(
         xaxis=dict(
