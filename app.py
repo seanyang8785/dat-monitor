@@ -92,12 +92,11 @@ def get_realtime_data():
 shares, debt, pref, cash, fund_ok = get_mstr_fundamentals()
 mstr_btc_holdings, btc_ok = get_mstr_holdings()
 
-# ================= 4. Sidebar (Display Only Mode) =================
+# ================= 4. Sidebar (Display & Selector) =================
 
 with st.sidebar:
     st.header("Baseline Parameter Monitoring")
     
-    # BTC Holdings Display & Warnings
     btc_display = f"{mstr_btc_holdings:,.0f} BTC"
     if not btc_ok:
         st.error(f"Holdings: {btc_display} ⚠️")
@@ -105,7 +104,6 @@ with st.sidebar:
     else:
         st.write(f"Holdings: {btc_display}")
         
-    # Capital Structure Display & Warnings
     if not fund_ok:
         st.error("⚠️ Financial data fetch failed (using baseline)")
     
@@ -123,12 +121,16 @@ with st.sidebar:
     selected_metrics = []
     options = {
         "MSTR Price": "Price_MSTR", 
-        "Estimated NAV": "NAV", 
         "mNAV Multiple": "mNAV", 
-        "Premium Rate": "P_D_Percent"
+        "Premium Rate": "P_D_Percent",
+        "BTC per Share": "BTC_per_Share",
+        "Net Leverage": "Net_Leverage",
+        "MSTR/BTC Ratio": "MSTR_BTC_Ratio"
     }
     for label, col in options.items():
-        if st.checkbox(label, value=(col in ["Price_MSTR", "mNAV"]), key=f"chk_{col}"):
+        # Default active metrics
+        is_default = col in ["Price_MSTR", "mNAV"]
+        if st.checkbox(label, value=is_default, key=f"chk_{col}"):
             selected_metrics.append((label, col))
 
 # ================= 5. Core Calculations =================
@@ -140,10 +142,16 @@ m_hist, b_hist, hist_ok = load_historical_data(TWELVE_DATA_KEY)
 cur_m = rt_m if rt_m else (m_hist.iloc[-1] if not m_hist.empty else 1800.0)
 cur_b = rt_b if rt_b else (b_hist.iloc[-1] if not b_hist.empty else 65000.0)
 
+# Calculations
 current_mcap = cur_m * shares
 current_ev = current_mcap + debt + pref - cash
 current_btc_res = cur_b * mstr_btc_holdings
 current_mnav = current_ev / current_btc_res if current_btc_res > 0 else 1.0
+
+# Advanced Metrics
+cur_btc_per_share = mstr_btc_holdings / shares
+cur_leverage = debt / (current_mcap + debt)
+cur_ratio = cur_m / cur_b
 
 # Dashboard Metrics
 c1, c2, c3, c4 = st.columns(4)
@@ -151,6 +159,12 @@ c1.metric("BTC Price", f"${cur_b:,.0f}")
 c2.metric("MSTR Price", f"${cur_m:,.2f}")
 c3.metric("Current mNAV", f"{current_mnav:.2f}x")
 c4.metric("Premium %", f"{(current_mnav-1)*100:.1f}%")
+
+# Dashboard Advanced Row
+c5, c6, c7 = st.columns(3)
+c5.metric("BTC per Share", f"{cur_btc_per_share:.6f}")
+c6.metric("Net Leverage", f"{cur_leverage:.1%}")
+c7.metric("MSTR/BTC Ratio", f"{cur_ratio:.4f}")
 
 st.markdown("---")
 
@@ -173,16 +187,22 @@ if hist_ok and not m_hist.empty:
     df = df.sort_index()
     
     # Historical Calculations
-    h_ev = (df['Price_MSTR'] * shares) + debt + pref - cash
+    h_mcap = df['Price_MSTR'] * shares
+    h_ev = h_mcap + debt + pref - cash
     h_res = df['Price_BTC'] * mstr_btc_holdings
+    
     df['mNAV'] = h_ev / h_res
     df['NAV'] = h_res / shares 
     df['P_D_Percent'] = (df['mNAV'] - 1)
+    df['BTC_per_Share'] = mstr_btc_holdings / shares
+    df['Net_Leverage'] = debt / (h_mcap + debt)
+    df['MSTR_BTC_Ratio'] = df['Price_MSTR'] / df['Price_BTC']
 
     if selected_metrics:
         fig = make_subplots(specs=[[{"secondary_y": True}]])
         for label, col in selected_metrics:
-            is_sec = col in ["mNAV", "P_D_Percent"]
+            # Secondary Y axis for percentage/multiple metrics
+            is_sec = col in ["mNAV", "P_D_Percent", "Net_Leverage", "MSTR_BTC_Ratio"]
             fig.add_trace(go.Scatter(x=df.index, y=df[col], name=label, line=dict(width=2.5)), secondary_y=is_sec)
         
         fig.update_layout(
@@ -190,7 +210,9 @@ if hist_ok and not m_hist.empty:
             margin=dict(l=20, r=20, t=20, b=20),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
-        if any(m[1] == "P_D_Percent" for m in selected_metrics):
+        
+        # Formatting for Percentage Scales
+        if any(m[1] in ["P_D_Percent", "Net_Leverage"] for m in selected_metrics):
             fig.update_yaxes(tickformat=".1%", secondary_y=True)
             
         st.plotly_chart(fig, use_container_width=True)
