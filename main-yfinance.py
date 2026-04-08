@@ -79,14 +79,10 @@ mstr_btc_holdings = get_mstr_holdings()
 with st.sidebar:
     st.header("⚙️ 實時基本面校準")
     st.write(f"持倉: **{mstr_btc_holdings:,.0f} BTC**")
-    st.write(f"股數 (Implied): **{total_shares/1e6:.1f}M**")
+    st.write(f"股數: **{total_shares/1e6:.1f}M**")
     st.write(f"債務: **${total_debt/1e9:.2f}B**")
     st.write(f"優先股: **${total_preferred/1e9:.2f}B**")
     st.write(f"現金: **${total_cash/1e9:.2f}B**")
-    
-    if st.button("🔄 強制刷新數據"):
-        st.cache_data.clear()
-        st.rerun()
     
     st.divider()
     st.subheader("📈 指標切換")
