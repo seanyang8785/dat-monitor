@@ -24,7 +24,7 @@ def get_mstr_holdings():
         companies = data.get('companies', [])
         for co in companies:
             # 使用更保險的名稱檢查
-            if "a6846" in co.get('name', ''):
+            if "Strategy" in co.get('name', ''):
                 st.sidebar.success("持倉數據已從 CoinGecko 更新")
                 return float(co.get('total_holdings', 0))
             
