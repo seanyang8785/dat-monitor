@@ -42,7 +42,7 @@ def get_mstr_fundamentals():
         
         # 如果 yfinance 抓不到，則回傳 2026/04 官方最新 ADSO 數據
         shares = shares if shares else 379425000
-        debt = debt if debt else 8250000000
+        debt = debt if debt else 8000000000
         return float(shares), float(debt)
     except:
         return 379425000.0, 8250000000.0
@@ -114,4 +114,4 @@ if not df.empty:
         fig.add_trace(go.Scatter(x=df.index, y=df[col], name=label), secondary_y=is_sec)
     
     fig.update_layout(template="plotly_dark", hovermode="x unified")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width=True)
