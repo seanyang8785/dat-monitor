@@ -14,11 +14,13 @@ def scrape_mstr_holdings():
     tables = pd.read_html(url)
     df_holdings = tables[0] # 通常第一個表格就是上市公司名單
     
-    # 尋找 MSTR 那一行並取得持幣量欄位
-    # 注意：網頁結構變動可能導致此處失效，需視情況調整
-    mstr_row = df_holdings[df_holdings['Entity'].str.contains("MicroStrategy", na=False)]
-    holdings = mstr_row['BTC Holdings'].values[0]
-    return float(holdings.replace(',', ''))
+    st.dataframe(df)
+    
+    # # 尋找 MSTR 那一行並取得持幣量欄位
+    # # 注意：網頁結構變動可能導致此處失效，需視情況調整
+    # mstr_row = df_holdings[df_holdings['Entity'].str.contains("MicroStrategy", na=False)]
+    # holdings = mstr_row['BTC Holdings'].values[0]
+    # return float(holdings.replace(',', ''))
 
 # 1. 定義數據 (以 MSTR 為例)
 ticker_symbol = "MSTR"
