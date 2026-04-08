@@ -2,6 +2,7 @@ import streamlit as st
 from twelvedata import TDClient
 import pandas as pd
 import requests
+import io
 
 # 設置網頁標題
 st.set_page_config(page_title="DAT.co 監測站", layout="wide")
@@ -11,31 +12,37 @@ st.write("本站監測 MicroStrategy (MSTR) 的 mNAV 指標及其與比特幣的
 
 def scrape_mstr_holdings():
     url = "https://bitcointreasuries.net/"
-    
-    # 偽裝成一般的 Chrome 瀏覽器
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
     
     try:
         response = requests.get(url, headers=headers, timeout=10)
-        # 如果狀態碼不是 200，會直接噴錯進入 except
         response.raise_for_status() 
         
-        # 使用抓下來的 HTML 文本給 Pandas 解析
-        tables = pd.read_html(response.text)
+        # --- 核心修正處 ---
+        # 使用 io.StringIO 將字串轉為類檔案物件
+        html_data = io.StringIO(response.text)
+        tables = pd.read_html(html_data)
+        # -----------------
+        
         df = tables[0]
         
-        # 尋找 MicroStrategy (這段邏輯維持不變)
+        # 尋找 MicroStrategy
+        # 使用 iloc 加上 str.contains 比較保險，不受欄位名稱變動影響
         mstr_row = df[df.iloc[:, 0].str.contains("MicroStrategy", na=False)]
-        holdings_str = str(mstr_row.iloc[0, 2])
-        holdings = float(holdings_str.replace(',', '').replace(' BTC', ''))
-        return holdings
         
+        if not mstr_row.empty:
+            # 假設持有量在第三欄 (index 2)
+            holdings_raw = str(mstr_row.iloc[0, 2])
+            # 清理字串中的逗號和非數字字元
+            import re
+            holdings_clean = re.sub(r'[^\d.]', '', holdings_raw)
+            return float(holdings_clean)
+            
     except Exception as e:
-        st.error(f"自動抓取失敗：{e}")
-        # 萬一失敗，回傳一個寫死的數值，保證 App 不會當機
-        return 252220
+        st.warning(f"自動抓取數據時發生小插曲：{e}")
+        return 252220 # 備援數值
 
 # 1. 定義數據 (以 MSTR 為例)
 ticker_symbol = "MSTR"
