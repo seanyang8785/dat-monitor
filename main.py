@@ -24,7 +24,7 @@ def get_mstr_holdings():
         companies = data.get('companies', [])
         for co in companies:
             # 使用更保險的名稱檢查
-            if "MicroStrategy" in co.get('name', ''):
+            if "Strategy" in co.get('name', ''):
                 return float(co.get('total_holdings', 0))
                 
     except Exception as e:
@@ -32,7 +32,7 @@ def get_mstr_holdings():
         st.sidebar.warning(f"API 抓取失敗，使用預設持倉量。錯誤原因: {e}")
         
     # 萬一 API 壞掉或沒抓到，回傳最新的已知數值 (2026/04 數據約為 252220)
-    return 766970
+    return 766969
 
 # 1. 定義數據 (以 MSTR 為例)
 ticker_symbol = "MSTR"
