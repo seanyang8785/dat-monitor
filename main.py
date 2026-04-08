@@ -1,5 +1,5 @@
 import streamlit as st
-import yfinance as yf
+from twelvedata import TDClient
 import pandas as pd
 
 # 設置網頁標題
@@ -14,11 +14,15 @@ btc_symbol = "BTC-USD"
 mstr_btc_holdings = 252220  # 截至最新數據的持有量，可根據報表更新
 
 # 2. 抓取數據 (過去一年)
+td = TDClient(apikey="42d2074881da4044b2c7dc363208af13")
 @st.cache_data
 def load_data():
-    mstr = yf.download(ticker_symbol, period="1y")
-    btc = yf.download(btc_symbol, period="1y")
-    return mstr, btc
+    # 抓取 MSTR 股價
+    mstr_ts = td.time_series(symbol="MSTR", interval="1day", outputsize=100).as_pandas()
+    # 抓取 BTC 價格
+    btc_ts = td.time_series(symbol="BTC/USD", interval="1day", outputsize=100).as_pandas()
+    
+    return mstr_ts, btc_ts
 
 mstr_data, btc_data = load_data()
 
