@@ -91,7 +91,7 @@ st.sidebar.write(f"📊 持倉: **{mstr_btc_holdings:,.0f} BTC**")
 st.sidebar.write(f"📑 股數: **{total_shares/1e6:.1f}M (ADSO)**")
 st.sidebar.write(f"💸 債務: **${total_debt/1e9:.2f}B**")
 latest = df.iloc[-1]
-st.sidebar.subheader("🐞 偵錯看板")
+st.sidebar.subheader("偵錯看板")
 st.sidebar.write(f"分子 (EV): {((latest['Price_MSTR'] * total_shares) + total_debt) / 1e9:.2f} B")
 st.sidebar.write(f"分母 (BTC Value): {(latest['Price_BTC'] * mstr_btc_holdings) / 1e9:.2f} B")
 
