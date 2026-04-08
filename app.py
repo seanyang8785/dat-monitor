@@ -150,8 +150,8 @@ c3.metric("mNAV 倍數 (Multiple)", f"{current_mnav:.2f}x")
 c4.metric("溢價率 (Premium %)", f"{(current_mnav-1)*100:.1f}%")
 
 c5, c6, c7, c8 = st.columns(4)
-c5.metric("每股含幣 (BPS)", f"{cur_bps:.6f}")
-c6.metric("強度比 (MSTR/BTC)", f"{cur_m/cur_b:.4f}") # 僅保留在儀表板
+c5.metric("每千股含幣 (BPTS)", f"{cur_bps:.6f}")
+c6.metric("強度比 (MSTR/BTC)", f"{cur_m/cur_b*1000:.4f}") # 僅保留在儀表板
 c7.metric("BTC 收益率 (Yield)", f"{real_yield:.2%}")
 c8.metric("淨槓桿率 (Net Leverage)", f"{cur_leverage:.1%}")
 
