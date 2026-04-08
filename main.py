@@ -27,6 +27,8 @@ def get_mstr_holdings():
             if "a6846" in co.get('name', ''):
                 st.sidebar.success("持倉數據已從 CoinGecko 更新")
                 return float(co.get('total_holdings', 0))
+            
+        st.sidebar.warning(f"找不到公司，使用預設持倉量。錯誤原因: {e}")
                 
     except Exception as e:
         # 如果 API 失敗，在畫面上顯示一個小警告，但維持運作
