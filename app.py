@@ -99,12 +99,12 @@ with st.sidebar:
     st.header("基準參數監測")
     
     # 顯示 BTC 持倉與警告
-    btc_display = f"{mstr_btc_holdings:,.0f} BTC"
+    btc_display = f"{mstr_btc_holdings:.0f} BTC"
     if not btc_ok:
         st.error(f"持倉: {btc_display} ⚠️")
         st.caption(":red[CoinGecko 連線失敗，目前為預設值]")
     else:
-        st.write(f"持倉: **{btc_display}**")
+        st.write(f"持倉: {btc_display}")
         
     # 顯示資本結構與警告
     if not fund_ok:
