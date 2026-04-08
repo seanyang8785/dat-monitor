@@ -6,22 +6,22 @@ import requests
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# ================= 1. 頁面設定 =================
-st.set_page_config(page_title="DAT.co 財務監測站", layout="wide")
-st.title("DAT.co (Digital Asset Treasury) 財務指標監測")
+# ================= 1. Page Configuration =================
+st.set_page_config(page_title="DAT.co Financial Monitor", layout="wide")
+st.title("DAT.co (Digital Asset Treasury) Financial Indicators Monitor")
 
-# --- 安全配置 ---
+# --- Security Configuration ---
 try:
     TWELVE_DATA_KEY = st.secrets["TWELVE_DATA_KEY"]
 except:
-    st.error("❌ 未偵測到 API 金鑰，請在 Secrets 中設定 TWELVE_DATA_KEY")
+    st.error("❌ API Key not detected. Please set TWELVE_DATA_KEY in Secrets.")
     st.stop()
 
-# ================= 2. 數據抓取與狀態追蹤 =================
+# ================= 2. Data Fetching & Status Tracking =================
 
 @st.cache_data(ttl=3600)
 def get_mstr_holdings():
-    """從 CoinGecko 獲取最新 BTC 持倉量"""
+    """Fetch latest BTC holdings from CoinGecko"""
     url = "https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin"
     try:
         data = requests.get(url, timeout=10).json()
@@ -34,7 +34,7 @@ def get_mstr_holdings():
 
 @st.cache_data(ttl=86400)
 def get_mstr_fundamentals():
-    """抓取資本結構：含股數、債務、優先股、現金"""
+    """Fetch capital structure: Shares, Debt, Preferred Stock, Cash"""
     status = {"ok": True}
     try:
         mstr = yf.Ticker("MSTR")
@@ -81,57 +81,62 @@ def get_realtime_data():
     m_p, b_p = None, None
     try:
         b_p = float(yf.Ticker("BTC-USD").fast_info['last_price'])
-    except: st.sidebar.warning("⚠️ BTC 即時報價連線失敗")
+    except: st.sidebar.warning("⚠️ BTC Real-time Price Connection Failed")
     try:
         m_p = yf.Ticker("MSTR").fast_info['last_price']
-    except: st.sidebar.warning("⚠️ MSTR 即時報價連線失敗")
+    except: st.sidebar.warning("⚠️ MSTR Real-time Price Connection Failed")
     return m_p, b_p
 
-# ================= 3. 數據初始化 =================
+# ================= 3. Data Initialization =================
 
 shares, debt, pref, cash, fund_ok = get_mstr_fundamentals()
 mstr_btc_holdings, btc_ok = get_mstr_holdings()
 
-# ================= 4. 側邊欄 (純顯示模式) =================
+# ================= 4. Sidebar (Display Only Mode) =================
 
 with st.sidebar:
-    st.header("基準參數監測")
+    st.header("Baseline Parameter Monitoring")
     
-    # 顯示 BTC 持倉與警告
-    btc_display = f"{mstr_btc_holdings:.0f} BTC"
+    # BTC Holdings Display & Warnings
+    btc_display = f"{mstr_btc_holdings:,.0f} BTC"
     if not btc_ok:
-        st.error(f"持倉: {btc_display} ⚠️")
-        st.caption(":red[CoinGecko 連線失敗，目前為預設值]")
+        st.error(f"Holdings: {btc_display} ⚠️")
+        st.caption(":red[CoinGecko connection failed, using default value]")
     else:
-        st.write(f"持倉: {btc_display}")
+        st.write(f"Holdings: {btc_display}")
         
-    # 顯示資本結構與警告
+    # Capital Structure Display & Warnings
     if not fund_ok:
-        st.error("⚠️ 財務數據抓取失敗 (使用基準值)")
+        st.error("⚠️ Financial data fetch failed (using baseline)")
     
-    st.write(f"股數: {shares/1e6:.1f}M")
-    st.write(f"總債務: ${debt/1e9:.2f}B")
-    st.write(f"優先股: ${pref/1e9:.2f}B")
-    st.write(f"現金: ${cash/1e9:.2f}B")
+    st.write(f"Shares: {shares/1e6:.1f}M")
+    st.write(f"Total Debt: ${debt/1e9:.2f}B")
+    st.write(f"Preferred Stock: ${pref/1e9:.2f}B")
+    st.write(f"Cash: ${cash/1e9:.2f}B")
     
-    if st.button("🔄 強制刷新數據"):
+    if st.button("🔄 Force Refresh Data"):
         st.cache_data.clear()
         st.rerun()
         
     st.divider()
-    st.subheader("指標切換")
+    st.subheader("Metric Selection")
     selected_metrics = []
-    options = {"MSTR 股價": "Price_MSTR", "估計 NAV": "NAV", "mNAV 倍數": "mNAV", "溢價率": "P_D_Percent"}
+    options = {
+        "MSTR Price": "Price_MSTR", 
+        "Estimated NAV": "NAV", 
+        "mNAV Multiple": "mNAV", 
+        "Premium Rate": "P_D_Percent"
+    }
     for label, col in options.items():
         if st.checkbox(label, value=(col in ["Price_MSTR", "mNAV"]), key=f"chk_{col}"):
             selected_metrics.append((label, col))
 
-# ================= 5. 核心計算 =================
+# ================= 5. Core Calculations =================
 
 rt_m, rt_b = get_realtime_data()
 m_hist, b_hist, hist_ok = load_historical_data(TWELVE_DATA_KEY)
 
-# Fallback 邏輯
+# Fallback Logic
 cur_m = rt_m if rt_m else (m_hist.iloc[-1] if not m_hist.empty else 1800.0)
 cur_b = rt_b if rt_b else (b_hist.iloc[-1] if not b_hist.empty else 65000.0)
 
@@ -140,7 +145,7 @@ current_ev = current_mcap + debt + pref - cash
 current_btc_res = cur_b * mstr_btc_holdings
 current_mnav = current_ev / current_btc_res if current_btc_res > 0 else 1.0
 
-# 儀表板
+# Dashboard Metrics
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("BTC Price", f"${cur_b:,.0f}")
 c2.metric("MSTR Price", f"${cur_m:,.2f}")
@@ -149,7 +154,7 @@ c4.metric("Premium %", f"{(current_mnav-1)*100:.1f}%")
 
 st.markdown("---")
 
-# 價值區塊
+# Value Blocks
 col_ev, col_res = st.columns(2)
 with col_ev:
     st.write("Enterprise Value (EV)")
@@ -160,14 +165,14 @@ with col_res:
     st.subheader(f"${current_btc_res/1e9:,.2f} B")
     st.caption(f"Based on {mstr_btc_holdings:,.0f} BTC")
 
-# ================= 6. 圖表區 =================
+# ================= 6. Chart Area =================
 
 if hist_ok and not m_hist.empty:
     df = pd.merge(m_hist, b_hist, left_index=True, right_index=True, how='inner')
     df.columns = ['Price_MSTR', 'Price_BTC']
     df = df.sort_index()
     
-    # 歷史計算
+    # Historical Calculations
     h_ev = (df['Price_MSTR'] * shares) + debt + pref - cash
     h_res = df['Price_BTC'] * mstr_btc_holdings
     df['mNAV'] = h_ev / h_res
@@ -190,4 +195,4 @@ if hist_ok and not m_hist.empty:
             
         st.plotly_chart(fig, use_container_width=True)
 else:
-    st.warning("⚠️ 歷史趨勢數據載入失敗")
+    st.warning("⚠️ Historical trend data failed to load")
