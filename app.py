@@ -31,7 +31,7 @@ def generate_mstr_summary(data_snapshot):
     data_snapshot: 包含目前的 BTC 價格、mNAV、Yield 等資訊的字典
     """
     # 選擇模型
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash-latest')
     
     # 撰寫 Prompt (指令)
     prompt = f"""
