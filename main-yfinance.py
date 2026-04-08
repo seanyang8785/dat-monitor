@@ -102,10 +102,11 @@ with st.sidebar.expander("📈 指標切換", expanded=True):
 if not df.empty:
     # 頂部儀表板
     latest = df.iloc[-1]
-    c1, c2, c3 = st.columns(3)
-    c1.metric("當前 mNAV", f"{latest['mNAV']:.2f}x")
-    c2.metric("每股含幣量", f"{(mstr_btc_holdings/total_shares)*1000:.4f} BTC/1k")
-    c3.metric("溢價率", f"{latest['P_D_Percent']:.1f}%")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("BTC 價格", f"${latest['Price_BTC']:,.0f}")
+    c2.metric("MSTR 股價", f"${latest['Price_MSTR']:,.2f}")
+    c3.metric("當前 mNAV", f"{latest['mNAV']:.2f}x")
+    c4.metric("溢價/折價", f"{latest['P_D_Percent']:.1f}%")
 
     # 繪圖
     fig = make_subplots(specs=[[{"secondary_y": True}]])
