@@ -34,6 +34,7 @@ def get_mstr_fundamentals():
     try:
         mstr = yf.Ticker("MSTR")
         info = mstr.info
+        print(info)
         # 抓取發行股數 (使用稀釋後股數更準確)
         shares = info.get('impliedSharesOutstanding') or info.get('sharesOutstanding')
         # 抓取總債務
