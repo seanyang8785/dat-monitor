@@ -14,134 +14,167 @@ st.title("DAT.co (Digital Asset Treasury) 財務指標監測")
 try:
     TWELVE_DATA_KEY = st.secrets["TWELVE_DATA_KEY"]
 except:
-    st.error("請在 Secrets 中設定 TWELVE_DATA_KEY")
+    st.error("❌ 未偵測到 API 金鑰，請在 Secrets 中設定 TWELVE_DATA_KEY")
     st.stop()
 
-# ================= 2. 數據抓取與計算函式 =================
+# ================= 2. 數據抓取與狀態追蹤 =================
+
+@st.cache_data(ttl=3600)
+def get_mstr_holdings():
+    """從 CoinGecko 獲取最新 BTC 持倉量"""
+    url = "https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin"
+    try:
+        data = requests.get(url, timeout=10).json()
+        for co in data.get('companies', []):
+            if "Strategy" in co.get('name', ''):
+                return float(co.get('total_holdings', 0)), True
+    except:
+        pass
+    return 766970.0, False  # 失敗時回傳預設值與 False
 
 @st.cache_data(ttl=86400)
 def get_mstr_fundamentals():
-    """抓取 MSTR 基本面參數"""
+    """抓取資本結構：含股數、債務、優先股、現金"""
+    status = {"ok": True}
     try:
         mstr = yf.Ticker("MSTR")
         info = mstr.info
         shares = info.get('impliedSharesOutstanding') or info.get('sharesOutstanding')
         debt = info.get('totalDebt')
         cash = info.get('totalCash')
-        # 2026 基準值 fallback
+        
+        if not shares or not debt: status["ok"] = False
+        
+        # 抓取優先股
+        preferred = 0.0
+        try:
+            bs = mstr.balance_sheet
+            if 'Preferred Stock' in bs.index:
+                preferred = float(bs.loc['Preferred Stock'].iloc[0])
+            else:
+                preferred = 3400000000.0
+        except:
+            preferred = 3400000000.0
+            
         return (
             float(shares or 379425000.0), 
             float(debt or 8247597056.0), 
-            3400000000.0, 
-            float(cash or 2250000000.0)
+            float(preferred), 
+            float(cash or 2250000000.0), 
+            status["ok"]
         )
     except:
-        return 379425000.0, 8247597056.0, 3400000000.0, 2250000000.0
+        return 379425000.0, 8247597056.0, 3400000000.0, 2250000000.0, False
 
 @st.cache_data(ttl=600)
 def load_historical_data(api_key):
-    """抓取歷史數據"""
     td = TDClient(apikey=api_key)
     try:
         mstr_ts = td.time_series(symbol="MSTR", interval="1day", outputsize=100).as_pandas()
         btc_ts = td.time_series(symbol="BTC/USD", interval="1day", outputsize=100).as_pandas()
         mstr_ts.columns = [c.lower() for c in mstr_ts.columns]
         btc_ts.columns = [c.lower() for c in btc_ts.columns]
-        return mstr_ts['close'], btc_ts['close']
+        return mstr_ts['close'], btc_ts['close'], True
     except:
-        return pd.Series(), pd.Series()
+        return pd.Series(), pd.Series(), False
 
 def get_realtime_data():
-    """抓取即時價格"""
     m_p, b_p = None, None
     try:
         b_res = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=3).json()
         b_p = float(b_res['price'])
-    except:
-        st.warning("無法取得即時 BTC 價格，改用緩存數據。")
+    except: st.sidebar.error("⚠️ BTC 即時連線失敗")
     try:
         m_p = yf.Ticker("MSTR").fast_info['last_price']
-    except:
-        st.warning("無法取得即時 MSTR 價格，改用緩存數據。")
+    except: st.sidebar.error("⚠️ MSTR 即時連線失敗")
     return m_p, b_p
 
-# ================= 3. 基礎參數與側邊欄 =================
+# ================= 3. 數據初始化與側邊欄警告邏輯 =================
 
-total_shares, total_debt, total_preferred, total_cash = get_mstr_fundamentals()
-mstr_btc_holdings = 766970.0 
+# 執行抓取
+shares, debt, pref, cash, fund_ok = get_mstr_fundamentals()
+auto_btc, btc_ok = get_mstr_holdings()
 
 with st.sidebar:
-    st.header("基準參數校準")
-    st.write(f"持倉: {mstr_btc_holdings:,.0f} BTC")
-    st.write(f"股數 (Implied): {total_shares/1e6:.1f}M")
-    st.write(f"總債務: ${total_debt/1e9:.2f}B")
-    st.write(f"優先股: ${total_preferred/1e9:.2f}B")
-    st.write(f"現金: ${total_cash/1e9:.2f}B")
+    st.header("⚙️ 基準參數校準")
     
-    if st.button("強制刷新數據"):
+    # BTC 持倉警告
+    btc_label = "BTC 持倉量" + ("" if btc_ok else " ⚠️ (自動抓取失敗)")
+    if not btc_ok: st.caption(" :red[警告: 無法連線 CoinGecko，目前使用預設手動值]")
+    
+    mstr_btc_holdings = st.number_input(btc_label, value=auto_btc, step=1.0, format="%.0f")
+    
+    st.divider()
+    
+    # 資本結構警告
+    if not fund_ok:
+        st.error("⚠️ 資本結構自動更新失敗")
+        st.caption(":red[目前數值為 2026/04 基準存檔，可能與當前財報有出入。]")
+
+    st.write(f"股數: {shares/1e6:.1f}M")
+    st.write(f"總債務: ${debt/1e9:.2f}B")
+    st.write(f"優先股: ${pref/1e9:.2f}B")
+    st.write(f"現金: ${cash/1e9:.2f}B")
+    
+    if st.button("🔄 強制重新整理數據"):
         st.cache_data.clear()
         st.rerun()
         
     st.divider()
-    st.subheader("指標切換")
+    st.subheader("📊 圖表開關")
     selected_metrics = []
-    options = {"MSTR 股價": "Price_MSTR", "估計 NAV": "NAV", "mNAV 倍數": "mNAV", "溢價/折價率": "P_D_Percent"}
+    options = {"MSTR 股價": "Price_MSTR", "估計 NAV": "NAV", "mNAV 倍數": "mNAV", "溢價率": "P_D_Percent"}
     for label, col in options.items():
         if st.checkbox(label, value=(col in ["Price_MSTR", "mNAV"]), key=f"chk_{col}"):
             selected_metrics.append((label, col))
 
-# ================= 4. 核心數據計算 (防失效邏輯) =================
+# ================= 4. 核心計算與主畫面 =================
 
 rt_m, rt_b = get_realtime_data()
-m_hist, b_hist = load_historical_data(TWELVE_DATA_KEY)
+m_hist, b_hist, hist_ok = load_historical_data(TWELVE_DATA_KEY)
 
-# 降級邏輯：即時 > 歷史最後一筆 > 預設常數
+# Fallback 邏輯
 cur_m = rt_m if rt_m else (m_hist.iloc[-1] if not m_hist.empty else 1800.0)
 cur_b = rt_b if rt_b else (b_hist.iloc[-1] if not b_hist.empty else 65000.0)
 
-# 財務指標計算
-current_mcap = cur_m * total_shares
-current_ev = current_mcap + total_debt + total_preferred - total_cash
+current_mcap = cur_m * shares
+current_ev = current_mcap + debt + pref - cash
 current_btc_res = cur_b * mstr_btc_holdings
 current_mnav = current_ev / current_btc_res if current_btc_res > 0 else 1.0
 
-# 5. 頂部儀表板顯示
+# 儀表板
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("BTC 價格", f"${cur_b:,.0f}")
-c2.metric("MSTR 股價", f"${cur_m:,.2f}")
-c3.metric("當前 mNAV", f"{current_mnav:.2f}x")
-c4.metric("溢價/折價率", f"{(current_mnav-1)*100:.1f}%")
+c1.metric("BTC Price", f"${cur_b:,.0f}")
+c2.metric("MSTR Price", f"${cur_m:,.2f}")
+c3.metric("Current mNAV", f"{current_mnav:.2f}x")
+c4.metric("Premium/Discount", f"{(current_mnav-1)*100:.1f}%")
 
 st.markdown("---")
 
-# 6. Enterprise Value 與 BTC Reserve Value 顯示
+# 價值區塊
 col_ev, col_res = st.columns(2)
 with col_ev:
     st.write("Enterprise Value (EV)")
     st.subheader(f"${current_ev/1e9:,.2f} B")
-    st.caption("計算: 市值 + 債務 + 優先股 - 現金")
+    st.caption("Market Cap + Total Debt + Preferred Stock - Total Cash")
 with col_res:
     st.write("BTC Reserve Value")
     st.subheader(f"${current_btc_res/1e9:,.2f} B")
-    st.caption(f"計算: {mstr_btc_holdings:,.0f} BTC * 當前幣價")
+    st.caption(f"Based on {mstr_btc_holdings:,.0f} BTC")
 
-# ================= 7. 歷史趨勢圖表區 =================
+# ================= 5. 趨勢圖表 =================
 
-if not m_hist.empty and not b_hist.empty:
+if hist_ok and not m_hist.empty:
     df = pd.merge(m_hist, b_hist, left_index=True, right_index=True, how='inner')
     df.columns = ['Price_MSTR', 'Price_BTC']
     df = df.sort_index()
     
-    # 補入最新一筆數據點
-    if rt_m: df.iloc[-1, df.columns.get_loc('Price_MSTR')] = rt_m
-    if rt_b: df.iloc[-1, df.columns.get_loc('Price_BTC')] = rt_b
-
     # 歷史序列計算
-    hist_mcap = df['Price_MSTR'] * total_shares
-    hist_ev = hist_mcap + total_debt + total_preferred - total_cash
-    hist_res = df['Price_BTC'] * mstr_btc_holdings
-    df['mNAV'] = hist_ev / hist_res
-    df['NAV'] = hist_res / total_shares 
+    h_mcap = df['Price_MSTR'] * shares
+    h_ev = h_mcap + debt + pref - cash
+    h_res = df['Price_BTC'] * mstr_btc_holdings
+    df['mNAV'] = h_ev / h_res
+    df['NAV'] = h_res / shares 
     df['P_D_Percent'] = (df['mNAV'] - 1)
 
     if selected_metrics:
@@ -151,17 +184,13 @@ if not m_hist.empty and not b_hist.empty:
             fig.add_trace(go.Scatter(x=df.index, y=df[col], name=label, line=dict(width=2.5)), secondary_y=is_sec)
         
         fig.update_layout(
-            template="plotly_dark", 
-            hovermode="x unified",
+            template="plotly_dark", hovermode="x unified",
             margin=dict(l=20, r=20, t=20, b=20),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
-        
         if any(m[1] == "P_D_Percent" for m in selected_metrics):
             fig.update_yaxes(tickformat=".1%", secondary_y=True)
             
         st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("請在側邊欄勾選指標以顯示分析圖表。")
 else:
-    st.error("歷史數據加載失敗，圖表暫不可用。")
+    st.warning("⚠️ 歷史趨勢數據暫時無法加載 (Twelve Data API)")
