@@ -26,20 +26,36 @@ def load_data():
 
 mstr_data, btc_data = load_data()
 
-# 3. 處理數據並計算 mNAV
-# 確保我們只取 'Close' 這一欄，並處理 yfinance 可能回傳的格式
-mstr_close = mstr_data['Close'].dropna()
-btc_close = btc_data['Close'].dropna()
+@st.cache_data
+def load_data():
+    # 抓取 MSTR (美股)
+    # Twelve Data 的欄位名稱預設通常是小寫 'close'
+    mstr_ts = td.time_series(symbol="MSTR", interval="1day", outputsize=100).as_pandas()
+    # 抓取 BTC (加密貨幣)
+    btc_ts = td.time_series(symbol="BTC/USD", interval="1day", outputsize=100).as_pandas()
+    return mstr_ts, btc_ts
 
-# 建立對齊日期的 DataFrame
+mstr_raw, btc_raw = load_data()
+
+# 3. 處理資料 (解決 KeyError 的核心)
+# 強制將所有欄位名稱轉為小寫，並取出 'close'
+mstr_raw.columns = [c.lower() for c in mstr_raw.columns]
+btc_raw.columns = [c.lower() for c in btc_raw.columns]
+
+# Twelve Data 回傳的 Index 通常是時間，我們直接取 'close'
+mstr_close = mstr_raw['close']
+btc_close = btc_raw['close']
+
+# 4. 合併與對齊
 df = pd.merge(mstr_close, btc_close, left_index=True, right_index=True, how='inner')
-df.columns = ['Price_MSTR', 'Price_BTC'] # 強制重新命名
+df.columns = ['Price_MSTR', 'Price_BTC']
+df = df.sort_index() # 確保時間是由舊到新
 
-# --- 重要：防錯檢查 ---
+# --- 防錯檢查 ---
 if df.empty:
-    st.error("❌ 抓取不到重合的日期數據，請檢查網絡連線或稍後再試。")
+    st.error("目前抓不到重合的日期數據，請確認 API Key 是否正確或剩餘次數。")
 else:
-    # 4. 計算指標
+    # 4. 計算 mNAV
     total_shares = 197000000 
     mstr_btc_holdings = 252220
 
@@ -48,18 +64,6 @@ else:
     df['mNAV'] = df['Market_Cap'] / df['BTC_Value_Held']
 
     # 5. UI 顯示
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("價格走勢比較")
-        st.line_chart(df[['Price_MSTR', 'Price_BTC']])
-
-    with col2:
-        st.subheader("mNAV 溢價倍數")
-        st.area_chart(df['mNAV'])
-        # 使用 iloc 之前先確認真的有資料
-        latest_mnav = df['mNAV'].iloc[-1]
-        st.write(f"當前最新 mNAV: **{latest_mnav:.2f}**")
-
-    # 顯示數據表供除錯 (可選)
-    with st.expander("查看原始數據"):
-        st.write(df.tail())
+    st.line_chart(df[['Price_MSTR', 'Price_BTC']])
+    st.area_chart(df['mNAV'])
+    st.metric("最新 mNAV 溢價倍數", f"{df['mNAV'].iloc[-1]:.2f}")
