@@ -6,3 +6,4 @@ lxml
 beautifulsoup4
 html5lib
 plotly
+yfinance
