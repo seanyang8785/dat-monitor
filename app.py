@@ -5,6 +5,7 @@ import pandas as pd
 import requests
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import google.generativeai as genai
 
 # ================= 1. 頁面設定 (Page Config) =================
 st.set_page_config(page_title="DAT.co 財務監測站", layout="wide")
@@ -16,6 +17,44 @@ try:
 except:
     st.error("❌ 未偵測到 API 金鑰，請在 Secrets 中設定 TWELVE_DATA_KEY")
     st.stop()
+    
+try:
+    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=GEMINI_API_KEY)
+except:
+    st.error("❌ 未偵測到 API 金鑰，請在 Secrets 中設定 GEMINI_API_KEY")
+    st.stop()
+    
+def generate_mstr_summary(data_snapshot):
+    """
+    接收當前數據並產生 AI 摘要
+    data_snapshot: 包含目前的 BTC 價格、mNAV、Yield 等資訊的字典
+    """
+    # 選擇模型
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    # 撰寫 Prompt (指令)
+    prompt = f"""
+    你是一位專業的 DAT (Digital Asset Treasury) 財務分析師。
+    請根據以下 MSTR (MicroStrategy) 的即時監測數據進行簡短解讀：
+    
+    - 當前 BTC 價格: ${data_snapshot['btc_price']:,}
+    - MSTR 溢價率 (Premium): {data_snapshot['premium']:.1%}
+    - 當前 mNAV 倍數: {data_snapshot['mnav']:.2f}x
+    - 累計 BTC Yield: {data_snapshot['yield']:.2%}
+    - 淨槓桿率 (Net Leverage): {data_snapshot['leverage']:.1%}
+    
+    請提供以下內容（使用繁體中文）：
+    1. 【現狀解讀】：一句話總結當前財務狀態。
+    2. 【趨勢與風險】：分析溢價率與槓桿率是否處於健康區間。
+    3. 【關鍵觀察點】：提醒投資者接下來該注意哪個數據。
+    """
+    
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"AI 摘要生成失敗：{str(e)}"
 
 # ================= 2. 數據抓取 (Data Fetching) =================
 
@@ -198,5 +237,23 @@ if hist_ok and not m_hist.empty:
             fig.add_hline(y=0, line_dash="dash", line_color="grey", line_width=1.5, secondary_y=True)
             
         st.plotly_chart(fig, use_container_width=True)
+        
+        # AI分析
+        if st.button("產生 AI 分析與趨勢解讀"):
+            with st.spinner("AI 分析中..."):
+                # 準備要餵給 AI 的快照數據
+                snapshot = {
+                    "btc_price": cur_b,
+                    "premium": (current_mnav - 1),
+                    "mnav": current_mnav,
+                    "yield": real_yield,
+                    "leverage": cur_leverage
+                }
+                
+                analysis_result = generate_mstr_summary(snapshot)
+                
+                # 顯示結果
+                st.info("AI 分析與趨勢解讀")
+                st.markdown(analysis_result)
 else:
     st.warning("⚠️ 歷史趨勢載入失敗")
