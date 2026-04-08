@@ -194,7 +194,7 @@ if hist_ok and not m_hist.empty:
     df['mNAV'] = h_ev / h_res
     df['NAV'] = h_res / shares 
     df['P_D_Percent'] = (df['mNAV'] - 1)
-    df['BTC_per_Share'] = mstr_btc_holdings / shares
+    df['BTC_per_thousand_Share'] = mstr_btc_holdings / shares * 1000
     df['Net_Leverage'] = debt / (h_mcap + debt)
     df['MSTR_BTC_Ratio'] = df['Price_MSTR'] / df['Price_BTC']
 
