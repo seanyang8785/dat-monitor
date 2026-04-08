@@ -11,7 +11,7 @@ st.set_page_config(page_title="DAT.co 財務監測站", layout="wide")
 st.title("DAT.co (Digital Asset Treasury) 財務指標監測")
 
 # --- API 配置 ---
-TWELVE_DATA_KEY = "e92bcc5a5a4d4f02a68bd5d88d2a01a6"
+TWELVE_DATA_KEY = st.secrets["TWELVE_DATA_KEY"]
 
 # ================= 2. 數據抓取與計算函式 =================
 
