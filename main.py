@@ -2,6 +2,7 @@ import streamlit as st
 from twelvedata import TDClient
 import pandas as pd
 import requests
+import plotly.graph_objects as go
 
 # 設置網頁標題
 st.set_page_config(page_title="DAT.co 監測站", layout="wide")
@@ -76,6 +77,27 @@ btc_raw.columns = [c.lower() for c in btc_raw.columns]
 mstr_close = mstr_raw['close']
 btc_close = btc_raw['close']
 
+def plot_mstr_chart(df):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df.index, y=df['mNAV'], name='mNAV Premium'))
+
+    # 配置互動行為
+    fig.update_layout(
+        # 允許放大 (Zoom)，但可以透過限制範圍來防止過度縮小
+        xaxis=dict(
+            rangeslider=dict(visible=False), # 關閉下方的滑動條以防誤觸縮放
+            fixedrange=False # 設為 False 允許放大
+        ),
+        yaxis=dict(fixedrange=True), # 鎖定 Y 軸不讓它被隨意縮放
+        dragmode='zoom', # 預設滑鼠模式為放大
+    )
+    
+    # 移除「縮小 (Zoom out)」按鈕，只留下「放大 (Zoom in)」
+    st.plotly_chart(fig, config={
+        'modeBarButtonsToRemove': ['zoomOut2d', 'autoscale2d', 'resetScale2d'],
+        'displaylogo': False
+    })
+
 # 4. 合併與對齊
 df = pd.merge(mstr_close, btc_close, left_index=True, right_index=True, how='inner')
 df.columns = ['Price_MSTR', 'Price_BTC']
@@ -94,6 +116,5 @@ else:
     df['mNAV'] = df['Market_Cap'] / df['BTC_Value_Held']
 
     # 5. UI 顯示
-    st.line_chart(df[['Price_MSTR', 'Price_BTC']])
-    st.area_chart(df['mNAV'])
+    plot_mstr_chart(df)
     st.metric("最新 mNAV 溢價倍數", f"{df['mNAV'].iloc[-1]:.2f}")
