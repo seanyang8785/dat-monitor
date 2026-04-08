@@ -160,9 +160,10 @@ c3.metric("Current mNAV", f"{current_mnav:.2f}x")
 c4.metric("Premium %", f"{(current_mnav-1)*100:.1f}%")
 
 # Dashboard Advanced Row
-c5, c6= st.columns(2)
-c5.metric("Net Leverage", f"{cur_leverage:.1%}")
-c6.metric("MSTR/BTC Ratio", f"{cur_ratio:.4f}")
+c5, c6, c7 = st.columns(3)
+c5.metric("BTC per Thousand Share", f"{cur_btc_per_thousand_share:.3f}")
+c6.metric("Net Leverage", f"{cur_leverage:.1%}")
+c7.metric("MSTR/BTC Ratio", f"{cur_ratio:.4f}")
 
 st.markdown("---")
 
