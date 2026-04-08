@@ -43,7 +43,7 @@ def get_mstr_shares(api_key):
             return float(shares)
     except:
         pass
-    return 380000000.0  # 2026/04 預設保險值 (約 3.8 億股)
+    return 382400000.0  # 2026/04 預設保險值 (約 3.8 億股)
 
 @st.cache_data(ttl=8)
 def load_market_data(api_key):
