@@ -30,7 +30,7 @@ def get_mstr_holdings():
                 return float(co.get('total_holdings', 0)), True
     except:
         pass
-    return 766970.0, False  # 失敗時回傳預設值與 False
+    return 766970.0, False 
 
 @st.cache_data(ttl=86400)
 def get_mstr_fundamentals():
@@ -45,7 +45,6 @@ def get_mstr_fundamentals():
         
         if not shares or not debt: status["ok"] = False
         
-        # 抓取優先股
         preferred = 0.0
         try:
             bs = mstr.balance_sheet
@@ -83,52 +82,54 @@ def get_realtime_data():
     try:
         b_res = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=3).json()
         b_p = float(b_res['price'])
-    except: st.sidebar.error("⚠️ BTC 即時連線失敗")
+    except: st.sidebar.warning("⚠️ BTC 即時報價連線失敗")
     try:
         m_p = yf.Ticker("MSTR").fast_info['last_price']
-    except: st.sidebar.error("⚠️ MSTR 即時連線失敗")
+    except: st.sidebar.warning("⚠️ MSTR 即時報價連線失敗")
     return m_p, b_p
 
-# ================= 3. 數據初始化與側邊欄警告邏輯 =================
+# ================= 3. 數據初始化 =================
 
-# 執行抓取
 shares, debt, pref, cash, fund_ok = get_mstr_fundamentals()
-auto_btc, btc_ok = get_mstr_holdings()
+mstr_btc_holdings, btc_ok = get_mstr_holdings()
+
+# ================= 4. 側邊欄 (純顯示模式) =================
 
 with st.sidebar:
-    st.header("⚙️ 基準參數校準")
+    st.header("⚙️ 基準參數監測")
     
-    # BTC 持倉警告
-    btc_label = "BTC 持倉量" + ("" if btc_ok else " ⚠️ (自動抓取失敗)")
-    if not btc_ok: st.caption(" :red[警告: 無法連線 CoinGecko，目前使用預設手動值]")
-    
-    mstr_btc_holdings = st.number_input(btc_label, value=auto_btc, step=1.0, format="%.0f")
+    # 顯示 BTC 持倉與警告
+    btc_display = f"{mstr_btc_holdings:,.0f} BTC"
+    if not btc_ok:
+        st.error(f"持倉: {btc_display} ⚠️")
+        st.caption(":red[CoinGecko 連線失敗，目前為預設值]")
+    else:
+        st.write(f"持倉: **{btc_display}**")
     
     st.divider()
     
-    # 資本結構警告
+    # 顯示資本結構與警告
     if not fund_ok:
-        st.error("⚠️ 資本結構自動更新失敗")
-        st.caption(":red[目前數值為 2026/04 基準存檔，可能與當前財報有出入。]")
-
+        st.error("⚠️ 財務數據抓取失敗 (使用基準值)")
+    
     st.write(f"股數: {shares/1e6:.1f}M")
     st.write(f"總債務: ${debt/1e9:.2f}B")
     st.write(f"優先股: ${pref/1e9:.2f}B")
     st.write(f"現金: ${cash/1e9:.2f}B")
     
-    if st.button("🔄 強制重新整理數據"):
+    if st.button("🔄 強制刷新數據"):
         st.cache_data.clear()
         st.rerun()
         
     st.divider()
-    st.subheader("📊 圖表開關")
+    st.subheader("📊 指標切換")
     selected_metrics = []
     options = {"MSTR 股價": "Price_MSTR", "估計 NAV": "NAV", "mNAV 倍數": "mNAV", "溢價率": "P_D_Percent"}
     for label, col in options.items():
         if st.checkbox(label, value=(col in ["Price_MSTR", "mNAV"]), key=f"chk_{col}"):
             selected_metrics.append((label, col))
 
-# ================= 4. 核心計算與主畫面 =================
+# ================= 5. 核心計算 =================
 
 rt_m, rt_b = get_realtime_data()
 m_hist, b_hist, hist_ok = load_historical_data(TWELVE_DATA_KEY)
@@ -147,7 +148,7 @@ c1, c2, c3, c4 = st.columns(4)
 c1.metric("BTC Price", f"${cur_b:,.0f}")
 c2.metric("MSTR Price", f"${cur_m:,.2f}")
 c3.metric("Current mNAV", f"{current_mnav:.2f}x")
-c4.metric("Premium/Discount", f"{(current_mnav-1)*100:.1f}%")
+c4.metric("Premium %", f"{(current_mnav-1)*100:.1f}%")
 
 st.markdown("---")
 
@@ -162,16 +163,15 @@ with col_res:
     st.subheader(f"${current_btc_res/1e9:,.2f} B")
     st.caption(f"Based on {mstr_btc_holdings:,.0f} BTC")
 
-# ================= 5. 趨勢圖表 =================
+# ================= 6. 圖表區 =================
 
 if hist_ok and not m_hist.empty:
     df = pd.merge(m_hist, b_hist, left_index=True, right_index=True, how='inner')
     df.columns = ['Price_MSTR', 'Price_BTC']
     df = df.sort_index()
     
-    # 歷史序列計算
-    h_mcap = df['Price_MSTR'] * shares
-    h_ev = h_mcap + debt + pref - cash
+    # 歷史計算
+    h_ev = (df['Price_MSTR'] * shares) + debt + pref - cash
     h_res = df['Price_BTC'] * mstr_btc_holdings
     df['mNAV'] = h_ev / h_res
     df['NAV'] = h_res / shares 
@@ -193,4 +193,4 @@ if hist_ok and not m_hist.empty:
             
         st.plotly_chart(fig, use_container_width=True)
 else:
-    st.warning("⚠️ 歷史趨勢數據暫時無法加載 (Twelve Data API)")
+    st.warning("⚠️ 歷史趨勢數據載入失敗")
