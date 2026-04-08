@@ -30,7 +30,7 @@ def get_mstr_holdings():
         pass
     return 766970.0  # 2026/04 預設保險值
 
-@st.cache_data(ttl=86400)
+@st.cache_data(ttl=3600)
 def get_mstr_shares(api_key):
     """獲取 MSTR 最新發行總股數"""
     url = f"https://api.twelvedata.com/quote?symbol=MSTR&apikey={api_key}"
@@ -45,7 +45,7 @@ def get_mstr_shares(api_key):
         pass
     return 380000000.0  # 2026/04 預設保險值 (約 3.8 億股)
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=8)
 def load_market_data(api_key):
     """獲取 MSTR 與 BTC 歷史收盤價"""
     td = TDClient(apikey=api_key)
