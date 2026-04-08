@@ -80,8 +80,7 @@ def load_historical_data(api_key):
 def get_realtime_data():
     m_p, b_p = None, None
     try:
-        b_res = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=3).json()
-        b_p = float(b_res['price'])
+        b_p = float(yf.Ticker("BTC-USD").fast_info['last_price'])
     except: st.sidebar.warning("⚠️ BTC 即時報價連線失敗")
     try:
         m_p = yf.Ticker("MSTR").fast_info['last_price']
