@@ -195,7 +195,7 @@ if hist_ok and not m_hist.empty:
             
         # 零軸分隔線
         if has_negative:
-            fig.add_hline(y=0, line_dash="solid", line_color="white", line_width=1.5, secondary_y=True)
+            fig.add_hline(y=0, line_dash="dash", line_color="grey", line_width=1.5, secondary_y=True)
             
         st.plotly_chart(fig, use_container_width=True)
 else:
