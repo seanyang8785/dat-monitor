@@ -1,3 +1,7 @@
 streamlit
-twelvedata
 pandas
+twelvedata
+requests
+lxml
+beautifulsoup4
+html5lib
