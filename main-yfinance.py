@@ -45,7 +45,7 @@ def get_mstr_fundamentals():
         debt = debt if debt else 8000000000
         return float(shares), float(debt)
     except:
-        return 379425000.0, 8250000000.0
+        return 379425000.0, 8000000000.0
 
 @st.cache_data(ttl=600)
 def load_price_data(api_key):
