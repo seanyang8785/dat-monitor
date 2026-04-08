@@ -25,7 +25,7 @@ def get_mstr_fundamentals():
         mstr = yf.Ticker("MSTR")
         info = mstr.info
         # 抓取 Basic Shares (優先採用 sharesOutstanding)
-        shares = info.get('sharesOutstanding') or 326000000.0
+        shares = info.get('impliedSharesOutstanding') or info.get('sharesOutstanding') or 345600000.0
         # 抓取總債務
         debt = info.get('totalDebt') or 8247597056.0
         preferred = 3400000000.0 
