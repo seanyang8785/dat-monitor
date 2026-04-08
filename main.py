@@ -77,7 +77,7 @@ btc_raw.columns = [c.lower() for c in btc_raw.columns]
 mstr_close = mstr_raw['close']
 btc_close = btc_raw['close']
 
-def plot_locked_chart(df):
+def plot_mstr_chart(df):
     fig = go.Figure()
     
     # 建立 mNAV 曲線
