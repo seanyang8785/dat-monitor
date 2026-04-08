@@ -79,7 +79,7 @@ try:
     # 3. mNAV 倍數
     df['mNAV'] = df['Price_MSTR'] / df['NAV']
     # 4. 溢價/折價率
-    df['P_D_Percent'] = ((df['Price_MSTR'] - df['NAV']) / df['NAV']) * 100
+    df['P_D_Percent'] = ((df['Price_MSTR'] - df['NAV']) / df['NAV'])
 
 except Exception as e:
     st.error(f"數據加載失敗，請檢查 API Key: {e}")
