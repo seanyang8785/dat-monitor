@@ -28,12 +28,10 @@ except:
 def generate_mstr_summary(data_snapshot):
     """
     接收當前數據並產生 AI 摘要
-    data_snapshot: 包含目前的 BTC 價格、mNAV、Yield 等資訊的字典
     """
-    # 選擇模型
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    # 修正模型名稱為清單中的正確路徑
+    model = genai.GenerativeModel('models/gemini-2.5-flash')
     
-    # 撰寫 Prompt (指令)
     prompt = f"""
     你是一位專業的 DAT (Digital Asset Treasury) 財務分析師。
     請根據以下 MSTR (MicroStrategy) 的即時監測數據進行簡短解讀：
@@ -60,7 +58,6 @@ def generate_mstr_summary(data_snapshot):
 
 @st.cache_data(ttl=3600)
 def get_mstr_holdings():
-    """從 CoinGecko 獲取最新 BTC 持倉量 (Fetch BTC Holdings)"""
     url = "https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin"
     try:
         data = requests.get(url, timeout=10).json()
@@ -73,7 +70,6 @@ def get_mstr_holdings():
 
 @st.cache_data(ttl=86400)
 def get_mstr_fundamentals():
-    """抓取資本結構 (Fetch Capital Structure)"""
     status = {"ok": True}
     try:
         mstr = yf.Ticker("MSTR")
@@ -131,11 +127,14 @@ def get_realtime_data():
 shares, debt, pref, cash, fund_ok = get_mstr_fundamentals()
 mstr_btc_holdings, btc_ok = get_mstr_holdings()
 
+# 初始化 AI 分析結果的 Session State (防止重新整理消失)
+if "analysis_res" not in st.session_state:
+    st.session_state.analysis_res = None
+
 # ================= 4. 側邊欄 (Sidebar) =================
 
 with st.sidebar:
     st.header("基準參數 (Baselines)")
-    
     st.write(f"持倉 (Holdings): **{mstr_btc_holdings:,.0f} BTC**")
     st.write(f"股數 (Shares): **{shares/1e6:.1f} M**")
     st.write(f"總債務 (Debt): **${debt/1e9:.2f} B**")
@@ -144,12 +143,12 @@ with st.sidebar:
     
     if st.button("🔄 強制刷新數據 (Refresh)"):
         st.cache_data.clear()
+        st.session_state.analysis_res = None
         st.rerun()
         
     st.divider()
     st.subheader("圖表指標 (Chart Metrics)")
     selected_metrics = []
-    # 這裡已移除強度比 (MSTR/BTC Ratio)
     options = {
         "MSTR 股價 (MSTR Price)": "Price_MSTR", 
         "mNAV 倍數 (mNAV Multiple)": "mNAV", 
@@ -175,13 +174,12 @@ current_ev = current_mcap + debt + pref - cash
 current_btc_res = cur_b * mstr_btc_holdings
 current_mnav = current_ev / current_btc_res if current_btc_res > 0 else 1.0
 
-# 每股含幣與收益率計算 (基於100天前)
 cur_bps = mstr_btc_holdings / shares
 initial_bps = mstr_btc_holdings / (shares * 0.95) 
 real_yield = (cur_bps / initial_bps) - 1
 cur_leverage = (debt - cash) / current_ev if current_ev > 0 else 0.0
 
-# --- 儀表板 (Dashboard Blocks) ---
+# --- 儀表板 ---
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("BTC 幣價 (Price)", f"${cur_b:,.0f}")
 c2.metric("MSTR 股價 (Price)", f"${cur_m:,.2f}")
@@ -190,24 +188,22 @@ c4.metric("溢價率 (Premium %)", f"{(current_mnav-1)*100:.1f}%")
 
 c5, c6, c7, c8 = st.columns(4)
 c5.metric("每千股含幣 (BPTS)", f"{cur_bps*1000:.6f}")
-c6.metric("強度比 (MSTR/BTC)", f"{cur_m/cur_b:.4f}") # 僅保留在儀表板
+c6.metric("強度比 (MSTR/BTC)", f"{cur_m/cur_b:.4f}")
 c7.metric("BTC 收益率 (Yield)", f"{real_yield:.2%}")
 c8.metric("淨槓桿率 (Net Leverage)", f"{cur_leverage:.1%}")
 
 st.markdown("---")
 
-# ================= 6. 圖表區 (Charts) =================
+# ================= 6. 圖表區與 AI 分析 =================
 
 if hist_ok and not m_hist.empty:
     df = pd.merge(m_hist, b_hist, left_index=True, right_index=True, how='inner')
     df.columns = ['Price_MSTR', 'Price_BTC']
     df = df.sort_index()
     
-    # 序列建立
     h_mcap = df['Price_MSTR'] * shares
     h_ev = h_mcap + debt + pref - cash
     h_res = df['Price_BTC'] * mstr_btc_holdings
-    
     df['mNAV'] = h_ev / h_res
     df['P_D_Percent'] = (df['mNAV'] - 1)
     df['Yield_Series'] = real_yield * (df.reset_index().index / len(df))
@@ -216,32 +212,25 @@ if hist_ok and not m_hist.empty:
     if selected_metrics:
         fig = make_subplots(specs=[[{"secondary_y": True}]])
         has_negative = False
-        
         for label, col in selected_metrics:
             is_sec = col in ["mNAV", "P_D_Percent", "Yield_Series", "Leverage_Series"]
             fig.add_trace(go.Scatter(x=df.index, y=df[col], name=label, line=dict(width=2.5)), secondary_y=is_sec)
-            if col in ["P_D_Percent", "Leverage_Series"]:
-                has_negative = True
+            if col in ["P_D_Percent", "Leverage_Series"]: has_negative = True
         
-        fig.update_layout(
-            template="plotly_dark", hovermode="x unified",
-            margin=dict(l=20, r=20, t=20, b=20),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
+        fig.update_layout(template="plotly_dark", hovermode="x unified", margin=dict(l=20, r=20, t=20, b=20),
+                          legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         
         if any(m[1] in ["P_D_Percent", "Yield_Series", "Leverage_Series"] for m in selected_metrics):
             fig.update_yaxes(tickformat=".1%", secondary_y=True)
             
-        # 零軸分隔線
         if has_negative:
             fig.add_hline(y=0, line_dash="dash", line_color="grey", line_width=1.5, secondary_y=True)
             
         st.plotly_chart(fig, use_container_width=True)
         
-        # AI分析
+        # --- AI 分析按鈕 (修正機制) ---
         if st.button("產生 AI 分析與趨勢解讀"):
-            with st.spinner("AI 分析中..."):
-                # 準備要餵給 AI 的快照數據
+            with st.spinner("正在呼叫 Gemini 2.5 分析數據..."):
                 snapshot = {
                     "btc_price": cur_b,
                     "premium": (current_mnav - 1),
@@ -249,11 +238,14 @@ if hist_ok and not m_hist.empty:
                     "yield": real_yield,
                     "leverage": cur_leverage
                 }
-                
-                analysis_result = generate_mstr_summary(snapshot)
-                
-                # 顯示結果
-                st.info("AI 分析與趨勢解讀")
-                st.markdown(analysis_result)
+                st.session_state.analysis_res = generate_mstr_summary(snapshot)
+        
+        # 顯示 AI 分析結果 (確保不會因為重新整理而消失)
+        if st.session_state.analysis_res:
+            st.info("💡 AI 分析與趨勢解讀")
+            st.markdown(st.session_state.analysis_res)
+            if st.button("清除 AI 內容"):
+                st.session_state.analysis_res = None
+                st.rerun()
 else:
     st.warning("⚠️ 歷史趨勢載入失敗")
