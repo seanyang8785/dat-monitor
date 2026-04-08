@@ -28,7 +28,7 @@ def get_mstr_fundamentals():
         mstr = yf.Ticker("MSTR")
         info = mstr.info
         # 抓取 Basic Shares (你提到的 345.6M)
-        shares = info.get('sharesOutstanding') or 345600000.0
+        shares = info.get('impliedSharesOutstanding') or info.get('sharesOutstanding') or 345600000.0
         # 抓取總債務 (約 82.47B)
         debt = info.get('totalDebt') or 8247597056.0
         
@@ -85,7 +85,7 @@ if not df.empty:
     # --- 側邊欄：校準資訊 ---
     st.sidebar.header("⚙️ 官方基準校準 (2026/04)")
     st.sidebar.write(f"持倉: **{mstr_btc_holdings:,.0f} BTC**")
-    st.sidebar.write(f"股數: **{total_shares/1e6:.1f}M (Basic)**")
+    st.sidebar.write(f"股數: **{total_shares:.1f}M (Basic)**")
     st.sidebar.write(f"債務: **${total_debt/1e9:.2f}B**")
     st.sidebar.write(f"優先股: **${total_preferred/1e9:.2f}B**")
     st.sidebar.write(f"現金: **${total_cash/1e9:.2f}B**")
