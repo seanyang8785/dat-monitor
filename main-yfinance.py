@@ -26,7 +26,7 @@ def get_mstr_holdings():
                 return float(co.get('total_holdings', 0))
     except:
         pass
-    return 760000.0 # 2026/04 基準
+    return 766970.0 # 2026/04 基準
 
 @st.cache_data(ttl=86400)
 def get_mstr_fundamentals():
