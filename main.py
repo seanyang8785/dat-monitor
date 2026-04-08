@@ -2,7 +2,6 @@ import streamlit as st
 from twelvedata import TDClient
 import pandas as pd
 import requests
-import io
 
 # 設置網頁標題
 st.set_page_config(page_title="DAT.co 監測站", layout="wide")
@@ -10,52 +9,36 @@ st.set_page_config(page_title="DAT.co 監測站", layout="wide")
 st.title("📊 DAT.co (Digital Asset Treasury) 財務指標監測")
 st.write("本站監測 MicroStrategy (MSTR) 的 mNAV 指標及其與比特幣的關係。")
 
-def scrape_mstr_holdings():
-    url = "https://bitcointreasuries.net/"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    }
+@st.cache_data(ttl=3600)  # 每小時更新一次持倉數據即可，不用太頻繁
+def get_mstr_holdings():
+    # CoinGecko 的上市公司持幣量接口
+    url = "https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin"
+    headers = {"User-Agent": "Mozilla/5.0"} # 加入簡單標頭避免被阻擋
     
     try:
         response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status() 
+        response.raise_for_status()
+        data = response.json()
         
-        # --- 核心修正處 ---
-        # 使用 io.StringIO 將字串轉為類檔案物件
-        html_data = io.StringIO(response.text)
-        tables = pd.read_html(html_data)
-        # -----------------
-        
-        df = tables[0]
-        
-        # 尋找 MicroStrategy
-        # 使用 iloc 加上 str.contains 比較保險，不受欄位名稱變動影響
-        is_mstr = df.iloc[:, 0].astype(str).str.contains("MicroStrategy", na=False)
-        mstr_row = df[is_mstr]
-
-        if not mstr_row.empty:
-            # 2. 取得持有量 (假設在第三欄，Index 2)
-            holdings_value = mstr_row.iloc[0, 2]
-            
-            # 3. 判斷抓到的是數字還是字串
-            if isinstance(holdings_value, (int, float)):
-                # 如果已經是數字了，直接回傳
-                return float(holdings_value)
-            else:
-                # 如果是字串 (例如 "252,220 BTC")，才需要用正規表達式清理
-                import re
-                holdings_clean = re.sub(r'[^\d.]', '', str(holdings_value))
-                return float(holdings_clean)
-                    
+        # 從 companies 列表裡尋找 MicroStrategy
+        companies = data.get('companies', [])
+        for co in companies:
+            # 使用更保險的名稱檢查
+            if "MicroStrategy" in co.get('name', ''):
+                return float(co.get('total_holdings', 0))
+                
     except Exception as e:
-        st.warning(f"自動抓取數據時發生小插曲：{e}")
-        return 252220 # 備援數值
+        # 如果 API 失敗，在畫面上顯示一個小警告，但維持運作
+        st.sidebar.warning(f"API 抓取失敗，使用預設持倉量。錯誤原因: {e}")
+        
+    # 萬一 API 壞掉或沒抓到，回傳最新的已知數值 (2026/04 數據約為 252220)
+    return 252220.0
 
 # 1. 定義數據 (以 MSTR 為例)
 ticker_symbol = "MSTR"
 btc_symbol = "BTC-USD"
-mstr_btc_holdings = scrape_mstr_holdings()  # 截至最新數據的持有量，可根據報表更新
-st.write(f"最新MSTR持有比特幣數量：{mstr_btc_holdings}枚")
+mstr_btc_holdings = get_mstr_holdings()  # 截至最新數據的持有量，可根據報表更新
+st.sidebar.info(f"目前監測持倉：{mstr_btc_holdings:,.0f} BTC")
 
 # 2. 抓取數據 (過去一年)
 td = TDClient(apikey="42d2074881da4044b2c7dc363208af13")
