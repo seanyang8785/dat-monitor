@@ -102,7 +102,7 @@ mstr_btc_holdings = 766970.0
 with st.sidebar:
     st.header("基準參數校準")
     st.write(f"持倉: {mstr_btc_holdings:,.0f} BTC")
-    st.write(f"股數 (Implied): {total_shares/1e6:.1f}M")
+    st.write(f"股數: {total_shares/1e6:.1f}M")
     st.write(f"債務: ${total_debt/1e9:.2f}B")
     st.write(f"優先股: ${total_preferred/1e9:.2f}B")
     st.write(f"現金: ${total_cash/1e9:.2f}B")
