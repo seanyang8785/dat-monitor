@@ -23,34 +23,39 @@ def load_data():
 mstr_data, btc_data = load_data()
 
 # 3. 處理數據並計算 mNAV
-# 確保我們只取 'Close' 這一欄，並處理可能的 Multi-Index 格式
+# 確保我們只取 'Close' 這一欄，並處理 yfinance 可能回傳的格式
 mstr_close = mstr_data['Close'].dropna()
 btc_close = btc_data['Close'].dropna()
 
-# 建立一個新的 DataFrame 來對齊日期
-df = pd.DataFrame(index=mstr_close.index)
-df['Price_MSTR'] = mstr_close
-df['Price_BTC'] = btc_close
+# 建立對齊日期的 DataFrame
+df = pd.merge(mstr_close, btc_close, left_index=True, right_index=True, how='inner')
+df.columns = ['Price_MSTR', 'Price_BTC'] # 強制重新命名
 
-# 移除任何有缺失值的日期（例如假日股市休市但加密貨幣沒關）
-df = df.dropna()
+# --- 重要：防錯檢查 ---
+if df.empty:
+    st.error("❌ 抓取不到重合的日期數據，請檢查網絡連線或稍後再試。")
+else:
+    # 4. 計算指標
+    total_shares = 197000000 
+    mstr_btc_holdings = 252220
 
-# 4. 計算指標
-total_shares = 197000000 
-mstr_btc_holdings = 252220
+    df['Market_Cap'] = df['Price_MSTR'] * total_shares
+    df['BTC_Value_Held'] = df['Price_BTC'] * mstr_btc_holdings
+    df['mNAV'] = df['Market_Cap'] / df['BTC_Value_Held']
 
-df['Market_Cap'] = df['Price_MSTR'] * total_shares
-df['BTC_Value_Held'] = df['Price_BTC'] * mstr_btc_holdings
-df['mNAV'] = df['Market_Cap'] / df['BTC_Value_Held']
+    # 5. UI 顯示
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("價格走勢比較")
+        st.line_chart(df[['Price_MSTR', 'Price_BTC']])
 
-# 5. UI 顯示 (對應新的欄位名稱)
-col1, col2 = st.columns(2)
-with col1:
-    st.subheader("價格走勢比較")
-    # 使用標準化或雙軸，這裡我們先簡單顯示
-    st.line_chart(df[['Price_MSTR', 'Price_BTC']])
+    with col2:
+        st.subheader("mNAV 溢價倍數")
+        st.area_chart(df['mNAV'])
+        # 使用 iloc 之前先確認真的有資料
+        latest_mnav = df['mNAV'].iloc[-1]
+        st.write(f"當前最新 mNAV: **{latest_mnav:.2f}**")
 
-with col2:
-    st.subheader("mNAV 溢價倍數")
-    st.area_chart(df['mNAV'])
-    st.write(f"當前最新 mNAV: **{df['mNAV'].iloc[-1]:.2f}**")
+    # 顯示數據表供除錯 (可選)
+    with st.expander("查看原始數據"):
+        st.write(df.tail())
