@@ -104,8 +104,13 @@ with st.sidebar:
     else:
         st.write(f"持倉 (Holdings): **{btc_display}**")
         
+    if not fund_ok:
+        st.error("⚠️ 財務數據抓取失敗 (Using Baseline)")
+    
     st.write(f"股數 (Shares): {shares/1e6:.1f}M")
     st.write(f"總債務 (Debt): ${debt/1e9:.2f}B")
+    st.write(f"優先股 (Pref): ${pref/1e9:.2f}B")
+    st.write(f"現金 (Cash): ${cash/1e9:.2f}B")
     
     if st.button("🔄 強制刷新數據 (Refresh)"):
         st.cache_data.clear()
@@ -118,7 +123,6 @@ with st.sidebar:
         "MSTR 股價 (Price)": "Price_MSTR", 
         "mNAV 倍數 (Multiple)": "mNAV", 
         "溢價率 (Premium %)": "P_D_Percent",
-        "比特幣收益率 (BTC Yield)": "BTC_Yield_Series",
         "MSTR/BTC 相對強度": "MSTR_BTC_Ratio"
     }
     for label, col in options.items():
