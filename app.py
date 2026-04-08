@@ -95,14 +95,14 @@ mstr_btc_holdings, btc_ok = get_mstr_holdings()
 # ================= 4. 側邊欄 (Sidebar) =================
 
 with st.sidebar:
-    st.header("⚙️ 基準參數 (Baseline)")
+    st.header("基準參數 (Baseline)")
     
     btc_display = f"{mstr_btc_holdings:,.0f} BTC"
     if not btc_ok:
         st.error(f"持倉 (Holdings): {btc_display} ⚠️")
         st.caption(":red[數據抓取失敗，使用預設值]")
     else:
-        st.write(f"持倉 (Holdings): **{btc_display}**")
+        st.write(f"持倉 (Holdings): {btc_display}")
         
     if not fund_ok:
         st.error("⚠️ 財務數據抓取失敗 (Using Baseline)")
@@ -117,7 +117,7 @@ with st.sidebar:
         st.rerun()
         
     st.divider()
-    st.subheader("📊 圖表指標 (Chart Metrics)")
+    st.subheader("圖表指標 (Chart Metrics)")
     selected_metrics = []
     options = {
         "MSTR 股價 (Price)": "Price_MSTR", 
