@@ -9,7 +9,7 @@ st.set_page_config(page_title="DAT.co 監測站", layout="wide")
 st.title("📊 DAT.co (Digital Asset Treasury) 財務指標監測")
 st.write("本站監測 MicroStrategy (MSTR) 的 mNAV 指標及其與比特幣的關係。")
 
-@st.cache_data(ttl=3600)  # 每小時更新一次持倉數據即可，不用太頻繁
+@st.cache_data(ttl=60)  # 每小時更新一次持倉數據即可，不用太頻繁
 def get_mstr_holdings():
     # CoinGecko 的上市公司持幣量接口
     url = "https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin"
