@@ -42,10 +42,10 @@ def get_mstr_fundamentals():
         
         # 如果 yfinance 抓不到，則回傳 2026/04 官方最新 ADSO 數據
         shares = shares if shares else 379425000
-        debt = debt if debt else 8000000000
+        debt = debt if debt else 8250000000
         return float(shares), float(debt)
     except:
-        return 379425000.0, 8000000000.0
+        return 379425000.0, 8250000000.0
 
 @st.cache_data(ttl=600)
 def load_price_data(api_key):
