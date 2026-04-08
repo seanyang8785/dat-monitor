@@ -7,3 +7,4 @@ beautifulsoup4
 html5lib
 plotly
 yfinance
+google.generativeai
