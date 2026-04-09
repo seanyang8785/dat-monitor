@@ -262,20 +262,20 @@ if hist_ok and not m_hist.empty:
                 if col in ["P_D_Percent", "Leverage_Series"]: has_negative = True
             
             # 重要：先 update_layout 再顯示 plotly_chart
+            # 3. 設定透明背景與邊距
             fig.update_layout(
                 template="plotly_dark",
                 hovermode="x unified",
-                paper_bgcolor="rgba(0,0,0,0)", # 透明背景以適應圓角框
+                paper_bgcolor="rgba(0,0,0,0)", 
                 plot_bgcolor="rgba(0,0,0,0)",
-                margin=dict(l=10, r=10, t=50, b=10),
+                margin=dict(l=20, r=20, t=50, b=20), # 增加邊距避免內容貼齊框線
                 showlegend=True,
                 legend=dict(
                     orientation="h",
                     yanchor="bottom",
-                    y=1.05,
+                    y=1.02,
                     xanchor="left",
-                    x=0,
-                    bgcolor="rgba(0,0,0,0)"
+                    x=0
                 )
             )
 
@@ -285,9 +285,7 @@ if hist_ok and not m_hist.empty:
                 fig.add_hline(y=0, line_dash="dash", line_color="grey", line_width=1.5, secondary_y=True)
 
             # 渲染圓角框外層
-            st.markdown('<div class="plot-container">', unsafe_allow_html=True)
             st.plotly_chart(fig, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
 
     # --- 3. AI 分析與頁尾 (放在圖表下方) ---
     col_ai, col_info = st.columns([2, 1])
