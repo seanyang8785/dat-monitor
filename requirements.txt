@@ -8,3 +8,4 @@ html5lib
 plotly
 yfinance
 google.generativeai
+datetime

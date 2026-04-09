@@ -229,7 +229,7 @@ if hist_ok and not m_hist.empty:
         if has_negative:
             fig.add_hline(y=0, line_dash="dash", line_color="grey", line_width=1.5, secondary_y=True)
             
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
         
         # --- AI 分析按鈕 (修正機制) ---
         if st.button("產生 AI 分析與趨勢解讀"):
