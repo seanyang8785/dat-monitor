@@ -134,7 +134,7 @@ if "analysis_res" not in st.session_state:
 # ================= 4. 側邊欄 (Sidebar) =================
 
 with st.sidebar:
-    st.header("基準參數 (Baselines)")
+    st.header("基準參數")
     st.write(f"持倉 (Holdings): **{mstr_btc_holdings:,.0f} BTC**")
     st.write(f"股數 (Shares): **{shares/1e6:.1f} M**")
     st.write(f"總債務 (Debt): **${debt/1e9:.2f} B**")
@@ -147,7 +147,7 @@ with st.sidebar:
         st.rerun()
         
     st.divider()
-    st.subheader("圖表指標 (Chart Metrics)")
+    st.subheader("圖表指標")
     selected_metrics = []
     options = {
         "MSTR 股價 (MSTR Price)": "Price_MSTR", 
