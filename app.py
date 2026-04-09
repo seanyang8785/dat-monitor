@@ -208,6 +208,8 @@ formatted_time = local_time.strftime('%Y-%m-%d %H:%M:%S')
 
 st.caption(f"🕒 最後更新時間：{formatted_time} (UTC+8)")
 
+st.markdown("---")
+
 # ================= 6. 圖表區與 AI 分析 =================
 
 if hist_ok and not m_hist.empty:
