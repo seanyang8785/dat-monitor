@@ -6,6 +6,7 @@ import requests
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import google.generativeai as genai
+import datetime
 
 # ================= 1. 頁面設定 (Page Config) =================
 st.set_page_config(page_title="MSTR財務指標監測", layout="wide")
@@ -192,7 +193,9 @@ c6.metric("強度比 (MSTR/BTC)", f"{cur_m/cur_b:.4f}")
 c7.metric("BTC 收益率 (Yield)", f"{real_yield:.2%}")
 c8.metric("淨槓桿率 (Net Leverage)", f"{cur_leverage:.1%}")
 
-st.markdown("---")
+st.caption("數據來源：Twelve Data, Yahoo Finance, CoinGecko Public Treasury API")
+st.caption("免責聲明：本儀表板僅供財務指標監測與學術研究參考，不構成任何投資建議。加密資產具備高風險，請審慎評估。")
+st.caption(f"最後更新時間：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 # ================= 6. 圖表區與 AI 分析 =================
 
