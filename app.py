@@ -237,7 +237,7 @@ if hist_ok and not m_hist.empty:
         [data-testid="stPlotlyChart"] {
             border: 1px solid #444444;
             border-radius: 15px;
-            padding: 10px;
+            padding: 15px 15px 35px 15px;
             background-color: transparent;
         }
         /* 確保圖表內部的 svg 不會超出圓角 */
