@@ -9,3 +9,4 @@ plotly
 yfinance
 google.generativeai
 datetime
+pytz

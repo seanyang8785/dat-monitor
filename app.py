@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import google.generativeai as genai
 from datetime import datetime
+import pytz
 
 # ================= 1. 頁面設定 (Page Config) =================
 st.set_page_config(page_title="MSTR財務指標監測", layout="wide")
@@ -195,7 +196,17 @@ c8.metric("淨槓桿率 (Net Leverage)", f"{cur_leverage:.1%}")
 
 st.caption("數據來源：Twelve Data, Yahoo Finance, CoinGecko Public Treasury API")
 st.caption("免責聲明：本儀表板僅供財務指標監測與學術研究參考，不構成任何投資建議。加密資產具備高風險，請審慎評估。")
-st.caption(f"最後更新時間：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+# 1. 設定目標時區
+local_tz = pytz.timezone('Asia/Taipei')
+
+# 2. 取得當前 UTC 時間並轉換為本地時間
+# 這樣不論伺服器在美國還是歐洲，顯示的都會是台灣時間
+local_time = datetime.now(pytz.utc).astimezone(local_tz)
+
+# 3. 格式化輸出
+formatted_time = local_time.strftime('%Y-%m-%d %H:%M:%S')
+
+st.caption(f"🕒 最後更新時間：{formatted_time} (UTC+8)")
 
 # ================= 6. 圖表區與 AI 分析 =================
 
