@@ -277,7 +277,7 @@ if hist_ok and not m_hist.empty:
                 legend=dict(
                     orientation="h",
                     yanchor="bottom",
-                    y=1.02,
+                    y=1.1
                     xanchor="left",
                     x=0,
                     bgcolor="rgba(0,0,0,0)"
