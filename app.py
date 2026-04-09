@@ -234,12 +234,11 @@ if hist_ok and not m_hist.empty:
     st.markdown("""
         <style>
         .plot-container {
-            border: 1px solid #333333;
-            border-radius: 15px;
+            border: 1px solid #444444; /* 框線顏色，可依喜好調整 */
+            border-radius: 15px;      /* 圓角 */
             overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            padding: 15px;
-            background-color: rgba(10,10,10,1);
+            padding: 10px;
+            background-color: transparent; /* 重要：背景設為透明 */
             margin-bottom: 20px;
         }
         </style>
