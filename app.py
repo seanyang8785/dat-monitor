@@ -233,13 +233,17 @@ if hist_ok and not m_hist.empty:
     # 1. 定義 CSS (建議放在這裡或頁面最上方)
     st.markdown("""
         <style>
-        .plot-container {
-            border: 1px solid #444444; /* 框線顏色，可依喜好調整 */
-            border-radius: 15px;      /* 圓角 */
-            overflow: hidden;
+        /* 鎖定 Streamlit 放置 Plotly 圖表的 iframe/div 容器 */
+        [data-testid="stPlotlyChart"] {
+            border: 1px solid #444444;
+            border-radius: 15px;
             padding: 10px;
-            background-color: transparent; /* 重要：背景設為透明 */
-            margin-bottom: 20px;
+            background-color: transparent;
+        }
+        /* 確保圖表內部的 svg 不會超出圓角 */
+        [data-testid="stPlotlyChart"] > div {
+            border-radius: 15px;
+            overflow: hidden;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -268,14 +272,15 @@ if hist_ok and not m_hist.empty:
                 hovermode="x unified",
                 paper_bgcolor="rgba(0,0,0,0)", 
                 plot_bgcolor="rgba(0,0,0,0)",
-                margin=dict(l=20, r=20, t=50, b=20), # 增加邊距避免內容貼齊框線
+                margin=dict(l=10, r=10, t=50, b=10), # 邊距縮小，讓框線貼合
                 showlegend=True,
                 legend=dict(
                     orientation="h",
                     yanchor="bottom",
                     y=1.02,
                     xanchor="left",
-                    x=0
+                    x=0,
+                    bgcolor="rgba(0,0,0,0)"
                 )
             )
 
@@ -286,7 +291,7 @@ if hist_ok and not m_hist.empty:
 
             # 渲染圓角框外層
             st.plotly_chart(fig, use_container_width=True)
-
+            
     # --- 3. AI 分析與頁尾 (放在圖表下方) ---
     col_ai, col_info = st.columns([2, 1])
     with col_ai:
@@ -301,11 +306,6 @@ if hist_ok and not m_hist.empty:
         if st.button("清除分析"):
             st.session_state.analysis_res = None
             st.rerun()
-
-    # 頁尾標註
-    st.divider()
-    st.caption(f"📊 數據來源：Twelve Data / CoinGecko | 最後更新：{formatted_time} (UTC+8)")
-    st.caption("⚠️ 本工具僅供學術研究，投資比特幣與其相關資產具備高度風險。")
 
 else:
     st.warning("⚠️ 歷史趨勢載入失敗")
