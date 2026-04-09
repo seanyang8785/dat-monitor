@@ -218,7 +218,7 @@ if hist_ok and not m_hist.empty:
             if col in ["P_D_Percent", "Leverage_Series"]: has_negative = True
         
         fig.update_layout(template="plotly_dark", hovermode="x unified", margin=dict(l=20, r=20, t=20, b=20),showlegend=True,
-                          legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+                          legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=1))
         
         if any(m[1] in ["P_D_Percent", "Yield_Series", "Leverage_Series"] for m in selected_metrics):
             fig.update_yaxes(tickformat=".1%", secondary_y=True)
