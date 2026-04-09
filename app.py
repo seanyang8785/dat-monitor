@@ -233,17 +233,20 @@ if hist_ok and not m_hist.empty:
     # 1. 定義 CSS (建議放在這裡或頁面最上方)
     st.markdown("""
         <style>
-        /* 鎖定 Streamlit 放置 Plotly 圖表的 iframe/div 容器 */
         [data-testid="stPlotlyChart"] {
             border: 1px solid #444444;
             border-radius: 15px;
-            padding: 15px;
+            padding: 5px; /* 縮小 padding 避免擠壓 */
             background-color: transparent;
+            box-sizing: border-box !important;
+            
+            /* 關鍵：鎖死高度，不要讓它自動增長 */
+            overflow: hidden !important;
         }
-        /* 確保圖表內部的 svg 不會超出圓角 */
+
+        /* 確保內部 div 配合外層圓角 */
         [data-testid="stPlotlyChart"] > div {
             border-radius: 15px;
-            height: auto !important;
             overflow: hidden !important;
         }
         </style>
@@ -269,6 +272,7 @@ if hist_ok and not m_hist.empty:
             # 重要：先 update_layout 再顯示 plotly_chart
             # 3. 設定透明背景與邊距
             fig.update_layout(
+                height=500,
                 template="plotly_dark",
                 hovermode="x unified",
                 paper_bgcolor="rgba(0,0,0,0)", 
