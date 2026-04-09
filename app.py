@@ -8,8 +8,8 @@ from plotly.subplots import make_subplots
 import google.generativeai as genai
 
 # ================= 1. 頁面設定 (Page Config) =================
-st.set_page_config(page_title="DAT.co 財務監測站", layout="wide")
-st.title("DAT.co (Digital Asset Treasury) 財務指標監測")
+st.set_page_config(page_title="MSTR財務指標監測", layout="wide")
+st.title("MSTR (MicroStrategy) 財務指標監測")
 
 # --- 安全配置 ---
 try:
