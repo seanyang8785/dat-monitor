@@ -273,7 +273,7 @@ if hist_ok and not m_hist.empty:
                 hovermode="x unified",
                 paper_bgcolor="rgba(0,0,0,0)", 
                 plot_bgcolor="rgba(0,0,0,0)",
-                margin=dict(l=10, r=10, t=40, b=70), # 邊距縮小，讓框線貼合
+                margin=dict(l=10, r=10, t=30, b=70), # 邊距縮小，讓框線貼合
                 showlegend=True,
                 legend=dict(
                     orientation="h",
