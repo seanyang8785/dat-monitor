@@ -240,7 +240,7 @@ if hist_ok and not m_hist.empty:
 
     # 2. 將圖表放入這個容器中
     with st.container():
-        st.markdown('<div class="plot-container">', unsafe_allow_html=True)
+        # st.markdown('<div class="plot-container">', unsafe_allow_html=True)
         
         if selected_metrics:
             fig = make_subplots(specs=[[{"secondary_y": True}]])
