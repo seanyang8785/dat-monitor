@@ -273,7 +273,7 @@ if hist_ok and not m_hist.empty:
                 hovermode="x unified",
                 paper_bgcolor="rgba(0,0,0,0)", 
                 plot_bgcolor="rgba(0,0,0,0)",
-                margin=dict(l=10, r=10, t=50, b=80), # 邊距縮小，讓框線貼合
+                margin=dict(l=10, r=10, t=40, b=70), # 邊距縮小，讓框線貼合
                 showlegend=True,
                 legend=dict(
                     orientation="h",
@@ -296,13 +296,13 @@ if hist_ok and not m_hist.empty:
     # --- 3. AI 分析與頁尾 (放在圖表下方) ---
     col_ai, col_info = st.columns([2, 1])
     with col_ai:
-        if st.button("✨ 產生 AI 趨勢解讀"):
+        if st.button("產生 AI 趨勢解讀"):
             with st.spinner("Gemini 正在分析反射性循環..."):
                 snapshot = {"btc_price": cur_b, "premium": (current_mnav - 1), "mnav": current_mnav, "yield": real_yield, "leverage": cur_leverage}
                 st.session_state.analysis_res = generate_mstr_summary(snapshot)
     
     if st.session_state.analysis_res:
-        st.info("💡 AI 分析建議")
+        st.info("AI 分析建議")
         st.markdown(st.session_state.analysis_res)
         if st.button("清除分析"):
             st.session_state.analysis_res = None
