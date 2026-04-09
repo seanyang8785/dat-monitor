@@ -217,7 +217,7 @@ if hist_ok and not m_hist.empty:
             fig.add_trace(go.Scatter(x=df.index, y=df[col], name=label, line=dict(width=2.5)), secondary_y=is_sec)
             if col in ["P_D_Percent", "Leverage_Series"]: has_negative = True
         
-        fig.update_layout(template="plotly_dark", hovermode="x unified", margin=dict(l=20, r=20, t=20, b=20),
+        fig.update_layout(template="plotly_dark", hovermode="x unified", margin=dict(l=20, r=20, t=20, b=20),showlegend=True,
                           legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         
         if any(m[1] in ["P_D_Percent", "Yield_Series", "Leverage_Series"] for m in selected_metrics):
@@ -242,7 +242,7 @@ if hist_ok and not m_hist.empty:
         
         # 顯示 AI 分析結果 (確保不會因為重新整理而消失)
         if st.session_state.analysis_res:
-            st.info("💡 AI 分析與趨勢解讀")
+            st.info("AI 分析與趨勢解讀")
             st.markdown(st.session_state.analysis_res)
             if st.button("清除 AI 內容"):
                 st.session_state.analysis_res = None
