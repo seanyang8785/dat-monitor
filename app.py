@@ -237,7 +237,7 @@ if hist_ok and not m_hist.empty:
         [data-testid="stPlotlyChart"] {
             border: 1px solid #444444;
             border-radius: 15px;
-            padding: 15px 15px 50px 15px;
+            padding: 15px;
             background-color: transparent;
         }
         /* 確保圖表內部的 svg 不會超出圓角 */
@@ -272,7 +272,7 @@ if hist_ok and not m_hist.empty:
                 hovermode="x unified",
                 paper_bgcolor="rgba(0,0,0,0)", 
                 plot_bgcolor="rgba(0,0,0,0)",
-                margin=dict(l=10, r=10, t=50, b=50), # 邊距縮小，讓框線貼合
+                margin=dict(l=10, r=10, t=50, b=80), # 邊距縮小，讓框線貼合
                 showlegend=True,
                 legend=dict(
                     orientation="h",
