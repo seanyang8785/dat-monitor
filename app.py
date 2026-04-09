@@ -36,7 +36,7 @@ def generate_mstr_summary(data_snapshot):
     
     prompt = f"""
     你是一位專業的 DAT (Digital Asset Treasury) 財務分析師。
-    請根據以下 MSTR (MicroStrategy) 的即時監測數據進行簡短解讀：
+    請根據以下 MSTR (MicroStrategy) 的即時監測數據進行簡短解讀，並用客觀語氣呈現：
     
     - 當前 BTC 價格: ${data_snapshot['btc_price']:,}
     - MSTR 溢價率 (Premium): {data_snapshot['premium']:.1%}
@@ -301,7 +301,7 @@ if hist_ok and not m_hist.empty:
     col_ai, col_info = st.columns([2, 1])
     with col_ai:
         if st.button("產生 AI 趨勢解讀"):
-            with st.spinner("Gemini 正在分析反射性循環..."):
+            with st.spinner("正在呼叫 Gemini 2.5 分析數據..."):
                 snapshot = {"btc_price": cur_b, "premium": (current_mnav - 1), "mnav": current_mnav, "yield": real_yield, "leverage": cur_leverage}
                 st.session_state.analysis_res = generate_mstr_summary(snapshot)
     
