@@ -232,8 +232,27 @@ if hist_ok and not m_hist.empty:
             is_sec = col in ["mNAV", "P_D_Percent", "Yield_Series", "Leverage_Series"]
             fig.add_trace(go.Scatter(x=df.index, y=df[col], name=label, line=dict(width=2.5)), secondary_y=is_sec)
             if col in ["P_D_Percent", "Leverage_Series"]: has_negative = True
-        
-        fig.update_layout(template="plotly_dark", hovermode="x unified", margin=dict(l=20, r=20, t=20, b=20),showlegend=True,
+        st.markdown("""
+            <style>
+            .plot-container {
+                border: 1px solid #333333; /* 邊框顏色 */
+                border-radius: 15px;      /* 圓角弧度 */
+                overflow: hidden;         # 確保內容不會超出圓角
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3); /* 淡淡的陰影 */
+                padding: 10px;            /* 給圖表一點呼吸空間 */
+                background-color: rgba(10,10,10,1); /* 背景色 */
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
+        # 2. 將圖表放入這個容器中
+        with st.container():
+            st.markdown('<div class="plot-container">', unsafe_allow_html=True)
+            
+            # 這裡放你原本的 Plotly 繪圖邏輯
+            # 注意：圖表的 paper_bgcolor 最好設為透明 "rgba(0,0,0,0)" 
+            # 這樣圓角背景才會由 CSS 控制
+            fig.update_layout(template="plotly_dark", hovermode="x unified", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",margin=dict(l=40, r=40, t=50, b=50),showlegend=True,
                           legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0))
         
         if any(m[1] in ["P_D_Percent", "Yield_Series", "Leverage_Series"] for m in selected_metrics):
