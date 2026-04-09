@@ -231,40 +231,20 @@ if hist_ok and not m_hist.empty:
     df['Leverage_Series'] = (debt - cash) / h_ev
 
     # 1. 定義 CSS (建議放在這裡或頁面最上方)
-    
     st.markdown("""
         <style>
-        /* 1. 外部容器修正 */
+        /* 鎖定 Streamlit 放置 Plotly 圖表的 iframe/div 容器 */
         [data-testid="stPlotlyChart"] {
             border: 1px solid #444444;
             border-radius: 15px;
-            padding: 10px; /* 稍微縮小 padding 減少溢出風險 */
+            padding: 15px;
             background-color: transparent;
-            
-            /* 核心：確保邊框不撐大容器 */
-            box-sizing: border-box !important;
-            
-            /* 強制高度自適應並隱藏溢出 */
-            height: auto !important;
-            overflow: hidden !important;
         }
-
-        /* 2. 針對內部繪圖區 */
+        /* 確保圖表內部的 svg 不會超出圓角 */
         [data-testid="stPlotlyChart"] > div {
             border-radius: 15px;
-            overflow: hidden !important;
             height: auto !important;
-        }
-
-        /* 3. 針對 Plotly 自動生成的 iframe 或內嵌元件（最強力的一擊） */
-        [data-testid="stPlotlyChart"] iframe {
-            border-radius: 15px;
             overflow: hidden !important;
-        }
-
-        /* 4. 移除 Streamlit 預設可能產生的底部空白 */
-        .stPlotlyChart {
-            margin-bottom: 20px;
         }
         </style>
     """, unsafe_allow_html=True)
