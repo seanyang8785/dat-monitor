@@ -211,11 +211,24 @@ st.caption(f"🕒 最後更新時間：{formatted_time} (UTC+8)")
 st.markdown("---")
 
 # ================= 6. 圖表區與 AI 分析 =================
+# --- 在 app.py 頂部確保時區正確 ---
+from datetime import datetime
+import pytz
+tw_tz = pytz.timezone('Asia/Taipei')
+formatted_time = datetime.now(pytz.utc).astimezone(tw_tz).strftime('%Y-%m-%d %H:%M:%S')
 
 if hist_ok and not m_hist.empty:
-    # ... (前面的數據處理保持不變) ...
     df = pd.merge(m_hist, b_hist, left_index=True, right_index=True, how='inner')
-    # ... (mNAV, Yield_Series 等計算) ...
+    df.columns = ['Price_MSTR', 'Price_BTC']
+    df = df.sort_index()
+    
+    h_mcap = df['Price_MSTR'] * shares
+    h_ev = h_mcap + debt + pref - cash
+    h_res = df['Price_BTC'] * mstr_btc_holdings
+    df['mNAV'] = h_ev / h_res
+    df['P_D_Percent'] = (df['mNAV'] - 1)
+    df['Yield_Series'] = real_yield * (df.reset_index().index / len(df))
+    df['Leverage_Series'] = (debt - cash) / h_ev
 
     # 1. 定義 CSS (建議放在這裡或頁面最上方)
     st.markdown("""
@@ -280,17 +293,22 @@ if hist_ok and not m_hist.empty:
     # --- 3. AI 分析與頁尾 (放在圖表下方) ---
     col_ai, col_info = st.columns([2, 1])
     with col_ai:
-        if st.button("產生 AI 趨勢解讀"):
+        if st.button("✨ 產生 AI 趨勢解讀"):
             with st.spinner("Gemini 正在分析反射性循環..."):
                 snapshot = {"btc_price": cur_b, "premium": (current_mnav - 1), "mnav": current_mnav, "yield": real_yield, "leverage": cur_leverage}
                 st.session_state.analysis_res = generate_mstr_summary(snapshot)
     
     if st.session_state.analysis_res:
-        st.info("AI 分析建議")
+        st.info("💡 AI 分析建議")
         st.markdown(st.session_state.analysis_res)
         if st.button("清除分析"):
             st.session_state.analysis_res = None
             st.rerun()
+
+    # 頁尾標註
+    st.divider()
+    st.caption(f"📊 數據來源：Twelve Data / CoinGecko | 最後更新：{formatted_time} (UTC+8)")
+    st.caption("⚠️ 本工具僅供學術研究，投資比特幣與其相關資產具備高度風險。")
 
 else:
     st.warning("⚠️ 歷史趨勢載入失敗")
