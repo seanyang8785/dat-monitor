@@ -243,7 +243,7 @@ if hist_ok and not m_hist.empty:
         /* 確保圖表內部的 svg 不會超出圓角 */
         [data-testid="stPlotlyChart"] > div {
             border-radius: 15px;
-            box-sizing: border-box !important;
+            height: auto !important;
             overflow: hidden !important;
         }
         </style>
