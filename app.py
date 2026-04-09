@@ -157,7 +157,7 @@ with st.sidebar:
         "淨槓桿率 (Net Leverage)": "Leverage_Series"
     }
     for label, col in options.items():
-        is_default = col in ["Price_MSTR", "mNAV"]
+        is_default = col in ["mNAV"]
         if st.checkbox(label, value=is_default, key=f"chk_{col}"):
             selected_metrics.append((label, col))
 
