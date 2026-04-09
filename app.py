@@ -213,74 +213,84 @@ st.markdown("---")
 # ================= 6. 圖表區與 AI 分析 =================
 
 if hist_ok and not m_hist.empty:
+    # ... (前面的數據處理保持不變) ...
     df = pd.merge(m_hist, b_hist, left_index=True, right_index=True, how='inner')
-    df.columns = ['Price_MSTR', 'Price_BTC']
-    df = df.sort_index()
-    
-    h_mcap = df['Price_MSTR'] * shares
-    h_ev = h_mcap + debt + pref - cash
-    h_res = df['Price_BTC'] * mstr_btc_holdings
-    df['mNAV'] = h_ev / h_res
-    df['P_D_Percent'] = (df['mNAV'] - 1)
-    df['Yield_Series'] = real_yield * (df.reset_index().index / len(df))
-    df['Leverage_Series'] = (debt - cash) / h_ev
-    
+    # ... (mNAV, Yield_Series 等計算) ...
+
+    # 1. 定義 CSS (建議放在這裡或頁面最上方)
     st.markdown("""
         <style>
         .plot-container {
-            border: 1px solid #333333; /* 邊框顏色 */
-            border-radius: 15px;      /* 圓角弧度 */
-            overflow: hidden;         # 確保內容不會超出圓角
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3); /* 淡淡的陰影 */
-            padding: 10px;            /* 給圖表一點呼吸空間 */
-            background-color: rgba(10,10,10,1); /* 背景色 */
+            border: 1px solid #333333;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            padding: 15px;
+            background-color: rgba(10,10,10,1);
+            margin-bottom: 20px;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # 2. 將圖表放入這個容器中
+    # 2. 圖表容器
     with st.container():
-        # st.markdown('<div class="plot-container">', unsafe_allow_html=True)
-        
         if selected_metrics:
+            # 建立圖表物件
             fig = make_subplots(specs=[[{"secondary_y": True}]])
             has_negative = False
+            
             for label, col in selected_metrics:
                 is_sec = col in ["mNAV", "P_D_Percent", "Yield_Series", "Leverage_Series"]
-                fig.add_trace(go.Scatter(x=df.index, y=df[col], name=label, line=dict(width=2.5)), secondary_y=is_sec)
+                fig.add_trace(go.Scatter(
+                    x=df.index, 
+                    y=df[col], 
+                    name=label, 
+                    line=dict(width=2.5)
+                ), secondary_y=is_sec)
                 if col in ["P_D_Percent", "Leverage_Series"]: has_negative = True
             
+            # 重要：先 update_layout 再顯示 plotly_chart
+            fig.update_layout(
+                template="plotly_dark",
+                hovermode="x unified",
+                paper_bgcolor="rgba(0,0,0,0)", # 透明背景以適應圓角框
+                plot_bgcolor="rgba(0,0,0,0)",
+                margin=dict(l=10, r=10, t=50, b=10),
+                showlegend=True,
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.05,
+                    xanchor="left",
+                    x=0,
+                    bgcolor="rgba(0,0,0,0)"
+                )
+            )
+
             if any(m[1] in ["P_D_Percent", "Yield_Series", "Leverage_Series"] for m in selected_metrics):
                 fig.update_yaxes(tickformat=".1%", secondary_y=True)
-                
             if has_negative:
                 fig.add_hline(y=0, line_dash="dash", line_color="grey", line_width=1.5, secondary_y=True)
-                
-            st.plotly_chart(fig, width='stretch')
-            
-            # --- AI 分析按鈕 (修正機制) ---
-            if st.button("產生 AI 分析與趨勢解讀"):
-                with st.spinner("正在呼叫 Gemini 2.5 分析數據..."):
-                    snapshot = {
-                        "btc_price": cur_b,
-                        "premium": (current_mnav - 1),
-                        "mnav": current_mnav,
-                        "yield": real_yield,
-                        "leverage": cur_leverage
-                    }
-                    st.session_state.analysis_res = generate_mstr_summary(snapshot)
-            
-            # 顯示 AI 分析結果 (確保不會因為重新整理而消失)
-            if st.session_state.analysis_res:
-                st.info("AI 分析與趨勢解讀")
-                st.markdown(st.session_state.analysis_res)
-                if st.button("清除 AI 內容"):
-                    st.session_state.analysis_res = None
-                    st.rerun()
-        # 注意：圖表的 paper_bgcolor 最好設為透明 "rgba(0,0,0,0)" 
-        # 這樣圓角背景才會由 CSS 控制
-        fig.update_layout(template="plotly_dark", hovermode="x unified", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",margin=dict(l=40, r=40, t=50, b=50),showlegend=True,
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0))
+
+            # 渲染圓角框外層
+            st.markdown('<div class="plot-container">', unsafe_allow_html=True)
+            st.plotly_chart(fig, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- 3. AI 分析與頁尾 (放在圖表下方) ---
+    col_ai, col_info = st.columns([2, 1])
+    with col_ai:
+        if st.button("產生 AI 趨勢解讀"):
+            with st.spinner("Gemini 正在分析反射性循環..."):
+                snapshot = {"btc_price": cur_b, "premium": (current_mnav - 1), "mnav": current_mnav, "yield": real_yield, "leverage": cur_leverage}
+                st.session_state.analysis_res = generate_mstr_summary(snapshot)
+    
+    if st.session_state.analysis_res:
+        st.info("AI 分析建議")
+        st.markdown(st.session_state.analysis_res)
+        if st.button("清除分析"):
+            st.session_state.analysis_res = None
+            st.rerun()
 
 else:
     st.warning("⚠️ 歷史趨勢載入失敗")
