@@ -206,7 +206,7 @@ local_time = datetime.now(pytz.utc).astimezone(local_tz)
 # 3. 格式化輸出
 formatted_time = local_time.strftime('%Y-%m-%d %H:%M:%S')
 
-st.caption(f"🕒 最後更新時間：{formatted_time} (UTC+8)")
+st.caption(f"最後更新時間：{formatted_time} (UTC+8)")
 
 st.markdown("---")
 
