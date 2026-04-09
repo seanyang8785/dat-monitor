@@ -6,7 +6,7 @@ import requests
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import google.generativeai as genai
-import datetime
+from datetime import datetime
 
 # ================= 1. 頁面設定 (Page Config) =================
 st.set_page_config(page_title="MSTR財務指標監測", layout="wide")
