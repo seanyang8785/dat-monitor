@@ -60,7 +60,17 @@ def generate_mstr_summary(data_snapshot):
     
     try:
         response = model.generate_content(prompt)
-        return response.text
+                # 假設 response 是 AI 回傳的字串
+        clean_res = response.text
+        # 找到「【現狀解讀】」出現的位置
+        start_index = clean_res.find("【")
+
+        if start_index != -1:
+            # 只擷取從「【現狀解讀】」開始之後的內容
+            final_output = clean_res[start_index:]
+        else:
+            final_output = clean_res
+        return final_output
     except Exception as e:
         return f"AI 摘要生成失敗：{str(e)}"
 
