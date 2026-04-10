@@ -29,7 +29,7 @@ except:
     
 def generate_mstr_summary(data_snapshot):
     # 修正模型名稱為清單中的正確路徑
-    model = genai.GenerativeModel('gemini-3.1-flash-lite')
+    model = genai.GenerativeModel('gemini-2.5-flash-lite')
     
     prompt = f"""
     你是一位專業的 DAT (Digital Asset Treasury) 財務分析師。
