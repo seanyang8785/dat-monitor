@@ -52,7 +52,7 @@ def generate_mstr_summary(data_snapshot):
                 # 假設 response 是 AI 回傳的字串
         clean_res = response.text
         # 找到「【現狀解讀】」出現的位置
-        start_index = clean_res.find("1")
+        start_index = clean_res.find("1. ")
 
         if start_index != -1:
             # 只擷取從「【現狀解讀】」開始之後的內容
