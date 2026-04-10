@@ -28,9 +28,6 @@ except:
     st.stop()
     
 def generate_mstr_summary(data_snapshot):
-    """
-    接收當前數據並產生 AI 摘要
-    """
     # 修正模型名稱為清單中的正確路徑
     model = genai.GenerativeModel('gemma-4-31b-it')
     
