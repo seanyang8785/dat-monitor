@@ -49,7 +49,7 @@ def generate_mstr_summary(data_snapshot):
     2. 【趨勢與風險】：分析溢價率與槓桿率是否處於健康區間。
     3. 【關鍵觀察點】：提醒投資者接下來該注意哪個數據。
     
-    Output the interpretation ONLY. Do not include any introductory remarks, internal reasoning, or metadata in your response. Start directly with '【現狀解讀】'.
+    請不要輸出推理過程.
     """
     
     try:
