@@ -35,27 +35,21 @@ def generate_mstr_summary(data_snapshot):
     model = genai.GenerativeModel('gemma-4-31b-it')
     
     prompt = f"""
-    Role: Professional DAT Financial Analyst.
-    Task: Provide an interpretation of MSTR data.
-
-    [CRITICAL RULE]: OUTPUT ONLY THE FINAL ANALYSIS. 
-    - NO introductory remarks (e.g., "Hello", "Here is the report").
-    - NO internal reasoning process or thinking process.
-    - NO metadata or lists of input data.
-    - START IMMEDIATELY with "【現狀解讀】".
-
-    Input Data:
-    - BTC Price: ${data_snapshot['btc_price']:,}
-    - Premium: {data_snapshot['premium']:.1%}
-    - mNAV Multiple: {data_snapshot['mnav']:.2f}x
-    - Cumulative BTC {data_snapshot['yield']:.2%}
-    - Net Leverage: {data_snapshot['leverage']:.1%}
-
-    Language: Traditional Chinese.
-    Format:
-    【現狀解讀】：(Content)
-    【趨勢與風險】：(Content)
-    【關鍵觀察點】：(Content)
+    你是一位專業的 DAT (Digital Asset Treasury) 財務分析師。
+    請根據以下 MSTR (MicroStrategy) 的即時監測數據進行簡短解讀，並用客觀語氣呈現：
+    
+    - 當前 BTC 價格: ${data_snapshot['btc_price']:,}
+    - MSTR 溢價率 (Premium): {data_snapshot['premium']:.1%}
+    - 當前 mNAV 倍數: {data_snapshot['mnav']:.2f}x
+    - 累計 BTC Yield: {data_snapshot['yield']:.2%}
+    - 淨槓桿率 (Net Leverage): {data_snapshot['leverage']:.1%}
+    
+    請提供以下內容（使用繁體中文）：
+    1. 【現狀解讀】：一句話總結當前財務狀態。
+    2. 【趨勢與風險】：分析溢價率與槓桿率是否處於健康區間。
+    3. 【關鍵觀察點】：提醒投資者接下來該注意哪個數據。
+    
+    Output the interpretation ONLY. Do not include any introductory remarks, internal reasoning, or metadata in your response. Start directly with '【現狀解讀】'.
     """
     
     try:
